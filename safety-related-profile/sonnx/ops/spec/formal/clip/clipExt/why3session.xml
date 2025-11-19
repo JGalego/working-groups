@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE why3session PUBLIC "-//Why3//proof session v5//EN"
+"https://www.why3.org/why3session.dtd">
+<why3session shape_version="6">
+<prover id="0" name="Alt-Ergo" version="2.6.2" timelimit="1" steplimit="0" memlimit="1000"/>
+<prover id="1" name="CVC5" version="1.2.1" timelimit="1" steplimit="0" memlimit="1000"/>
+<prover id="2" name="Z3" version="4.13.4" timelimit="1" steplimit="0" memlimit="1000"/>
+<file format="whyml">
+<path name=".."/><path name="clipExt.mlw"/>
+<theory name="OPClip" proved="true">
+ <goal name="opclip&#39;vc" expl="VC for opclip" proved="true">
+ <proof prover="2"><result status="valid" time="0.007185" steps="42278"/></proof>
+ </goal>
+ <goal name="clip_correct" proved="true">
+ <proof prover="2"><result status="valid" time="0.010010" steps="51173"/></proof>
+ </goal>
+</theory>
+<theory name="OPClip_ExtendedTypes" proved="true">
+ <goal name="extended_real_to_real&#39;vc" expl="VC for extended_real_to_real" proved="true">
+ <proof prover="2"><result status="valid" time="0.003928" steps="51671"/></proof>
+ </goal>
+ <goal name="opclip_ext&#39;vc" expl="VC for opclip_ext" proved="true">
+ <proof prover="0"><result status="timeout" time="1.000000" steps="108601"/></proof>
+ <proof prover="1"><result status="timeout" time="1.000000"/></proof>
+ <proof prover="2"><result status="timeout" time="0.799670" steps="2045242"/></proof>
+ <transf name="split_vc" proved="true" >
+  <goal name="opclip_ext&#39;vc.0" expl="precondition" proved="true">
+  <proof prover="2"><result status="valid" time="0.007526" steps="27264"/></proof>
+  </goal>
+  <goal name="opclip_ext&#39;vc.1" expl="precondition" proved="true">
+  <proof prover="2"><result status="valid" time="0.006888" steps="39418"/></proof>
+  </goal>
+  <goal name="opclip_ext&#39;vc.2" expl="postcondition" proved="true">
+  <proof prover="2"><result status="valid" time="0.010789" steps="38939"/></proof>
+  </goal>
+  <goal name="opclip_ext&#39;vc.3" expl="postcondition" proved="true">
+  <proof prover="2"><result status="valid" time="0.012085" steps="56567"/></proof>
+  </goal>
+  <goal name="opclip_ext&#39;vc.4" expl="postcondition" proved="true">
+  <proof prover="1"><result status="valid" time="0.031368" steps="11013"/></proof>
+  </goal>
+  <goal name="opclip_ext&#39;vc.5" expl="postcondition" proved="true">
+  <proof prover="2"><result status="valid" time="0.017935" steps="87919"/></proof>
+  </goal>
+ </transf>
+ </goal>
+ <goal name="clip_ext_correct" proved="true">
+ <proof prover="2"><result status="valid" time="0.023836" steps="113630"/></proof>
+ </goal>
+</theory>
+<theory name="AuxiliaryListFunctions">
+ <goal name="preprend&#39;vc" expl="VC for preprend" proved="true">
+ <proof prover="2"><result status="valid" time="0.004098" steps="22337"/></proof>
+ </goal>
+ <goal name="all_indices&#39;vc" expl="VC for all_indices">
+ <proof prover="0"><result status="timeout" time="1.000000" steps="125617"/></proof>
+ <proof prover="1"><result status="timeout" time="1.000000"/></proof>
+ <proof prover="2"><result status="timeout" time="0.797198" steps="3347713"/></proof>
+ <transf name="split_vc" >
+  <goal name="all_indices&#39;vc.0" expl="variant decrease" proved="true">
+  <proof prover="2"><result status="valid" time="0.006570" steps="23214"/></proof>
+  </goal>
+  <goal name="all_indices&#39;vc.1" expl="precondition" proved="true">
+  <proof prover="2"><result status="valid" time="0.009081" steps="22362"/></proof>
+  </goal>
+  <goal name="all_indices&#39;vc.2" expl="precondition" proved="true">
+  <proof prover="1"><result status="valid" time="0.022661" steps="5701"/></proof>
+  </goal>
+  <goal name="all_indices&#39;vc.3" expl="variant decrease">
+  <proof prover="0"><result status="timeout" time="1.000000" steps="119885"/></proof>
+  <proof prover="1"><result status="timeout" time="1.000000"/></proof>
+  <proof prover="2"><result status="timeout" time="1.000000" steps="3526704"/></proof>
+  <transf name="split_vc" >
+   <goal name="all_indices&#39;vc.3.0" expl="variant decrease">
+   <proof prover="0" timelimit="5" memlimit="2000"><undone/></proof>
+   <proof prover="1" timelimit="5" memlimit="2000"><undone/></proof>
+   <proof prover="2" timelimit="5" memlimit="2000"><undone/></proof>
+   </goal>
+  </transf>
+  </goal>
+  <goal name="all_indices&#39;vc.4" expl="precondition" proved="true">
+  <proof prover="2"><result status="valid" time="0.008056" steps="2202"/></proof>
+  </goal>
+  <goal name="all_indices&#39;vc.5" expl="precondition" proved="true">
+  <proof prover="2"><result status="valid" time="0.009020" steps="26448"/></proof>
+  </goal>
+ </transf>
+ </goal>
+</theory>
+</file>
+</why3session>

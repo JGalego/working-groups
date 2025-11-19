@@ -1,0 +1,240 @@
+module OPClip
+  use tensor.Tensor
+  use int.Int
+  use list.List
+  use tensor.Range
+  use real.Real
+  use real.MinMax
+
+    predicate is_scalar_tensor (t : tensor real) =
+        t.dims = Nil /\ t.data = (fun _ -> t.background)
+
+    predicate ordered_bounds (l m y: tensor real) =
+        forall ks:list int. valid ks y.dims ->
+        (l.background <= m.background ->
+            l.background <= y.data ks /\ y.data ks <= m.background)
+
+    predicate inverted_bounds (l m y: tensor real) =
+        forall ks:list int. valid ks y.dims ->
+        (l.background > m.background ->
+            y.data ks = m.background) 
+
+    let ghost function dclip (x_coords : list int) (x l m : tensor real) : real
+      (*proof*)
+      = 
+        if valid x_coords x.dims then
+          min m.background (max (x.data x_coords) l.background)
+        else x.background
+
+    let ghost function opclip (x l m : tensor real): tensor real
+      requires { is_scalar_tensor l }
+      requires { is_scalar_tensor m }
+      ensures { result ~= x }
+      ensures { ordered_bounds l m result }
+      ensures { inverted_bounds l m result }
+      (*proof*)
+      = { dims = x.dims; data = (fun ks -> dclip ks x l m); background = x.background }
+      (*qed*)
+
+    goal clip_correct:
+      forall x l m: tensor real.
+        is_scalar_tensor l /\ is_scalar_tensor m ->
+        let y = opclip x l m in
+          ordered_bounds l m y /\ inverted_bounds l m y
+
+end 
+module OPClip_ExtendedTypes
+    use tensor.Tensor
+    use real.Real
+    use list.List
+    use tensor.Range
+    use real.MinMax
+    use OPClip
+    
+    type extended_real = Some real | NAN
+    
+    (* 
+    Note: NaN values cannot be represented in the Why3 'real' type.
+    This constant (anyReal) is used only as a placeholder for code readability
+    when converting from extended_real to real. It does not carry any mathematical meaning.
+    *)
+    let constant anyReal : real = 0.0
+
+    (*Helper function*)
+    predicate gt_ext (a b: extended_real) =
+        match a, b with
+        | Some ra, Some rb -> ra > rb
+        | _, _ -> false
+        end
+
+    predicate gte_ext (a b: extended_real) =
+        match a, b with
+        | Some ra, Some rb -> ra >= rb
+        | _, _ -> false
+        end
+
+    predicate lt_ext (a b: extended_real) =
+        match a, b with
+        | Some ra, Some rb -> ra < rb
+        | _, _ -> false
+        end
+
+    predicate lte_ext (a b: extended_real) =
+        match a, b with
+        | Some ra, Some rb -> ra <= rb
+        | _, _ -> false
+        end 
+    
+    predicate eq_ext (a b: extended_real) =
+        match a, b with
+        | Some ra, Some rb -> ra = rb
+        | _, _ -> false
+        end
+
+    predicate is_scalar_tensor_ext (t : tensor extended_real) =
+        t.dims = Nil /\ t.data = (fun _ -> t.background)
+
+
+    predicate bounds (l m y: tensor extended_real) =
+        forall ks:list int. valid ks y.dims ->
+        match y.data ks, l.background, m.background with
+        | NAN, _, _ -> true
+        | Some ry, NAN, Some rm -> lte_ext (Some ry) (Some rm)
+        | Some ry, Some rl, NAN -> gte_ext (Some ry) (Some rl)
+        | Some ry, NAN, NAN -> true
+        | Some ry, Some rl, Some rm -> if lte_ext (Some rl) (Some rm) then
+                                        (gte_ext (Some ry) (Some rl) /\ lte_ext (Some ry) (Some rm))
+                                      else
+                                        eq_ext (Some ry) (Some rm)
+        end
+
+    let ghost function dclip_ext (x_coords : list int) (x l m : tensor extended_real) : extended_real
+      (*proof*)
+      = 
+        if valid x_coords x.dims then
+            match x.data x_coords with
+            | NAN -> NAN
+            | Some rx ->
+                match l.background, m.background with
+                | NAN, Some rm -> Some (min rx rm)
+                | Some rl, NAN -> Some (max rx rl)
+                | NAN, NAN -> Some rx
+                | Some rl, Some rm -> Some (min rm (max rx rl)) 
+                end
+            end
+        else x.background
+
+    let ghost function extended_real_to_real (x: tensor extended_real) : tensor real
+        ensures { result.dims = x.dims }
+        ensures { result.background =
+            match x.background with
+            | NAN -> 0.0
+            | Some r -> r
+            end
+        }
+        ensures { is_scalar_tensor_ext x -> is_scalar_tensor result }
+        ensures { forall ks: list int. valid ks x.dims -> 
+            match x.data ks with
+            | NAN -> result.data ks = 0.0
+            | Some r -> result.data ks = r
+            end
+        }
+        (*proof*)
+        = 
+        let background_real =
+            match x.background with
+            | NAN -> 0.0
+            | Some r -> r
+            end
+        in
+        {   dims = x.dims; 
+            data = (
+            fun ks ->
+                if valid ks x.dims then
+                    match x.data ks with
+                    | NAN -> 0.0    
+                    | Some r -> r
+                    end
+                else 
+                    background_real
+            ); 
+            background = background_real
+        }
+
+
+    let ghost function opclip_ext (x l m : tensor extended_real): tensor extended_real
+      requires { is_scalar_tensor_ext l }
+      requires { is_scalar_tensor_ext m }
+      ensures { result ~= x }
+      ensures { bounds l m result }
+      ensures { extended_real_to_real result ~= opclip (extended_real_to_real x) (extended_real_to_real l) (extended_real_to_real m) }
+      ensures { forall ks: list int. valid ks result.dims ->
+                    match result.data ks, l.background, m.background with
+                    | NAN, _, _ -> true
+                    | Some ry, Some rl, Some rm -> ry = dclip ks (extended_real_to_real x) (extended_real_to_real l) (extended_real_to_real m)
+                    | _, _, _ -> true
+                    end
+                }
+      (*proof*)
+      = { dims = x.dims; data = (fun ks -> dclip_ext ks x l m); background = x.background }
+      (*qed*)
+
+    
+    goal clip_ext_correct:
+      forall x l m: tensor extended_real.
+        is_scalar_tensor_ext l /\ is_scalar_tensor_ext m ->
+        let y = opclip_ext x l m in
+          bounds l m y
+
+end
+
+module AuxiliaryListFunctions
+    use int.Int
+    use list.Nth
+    use list.List
+    use option.Option
+    use list.Append
+    use list.HdTl
+    use list.Mem
+    use list.Length
+    use tensor.Range
+
+
+    function head (l: list int): int =
+        match l with
+        | Cons d _ -> d
+        | Nil -> -1
+        end
+    
+    function tail (l: list int): list int =
+        match l with
+        | Cons _ t -> t
+        | Nil -> Nil
+        end
+
+    let rec ghost function preprend (i: int) (lists: list (list int)) : list (list int) 
+    variant { length lists }
+    =
+        match lists with
+        | Nil -> Nil
+        | Cons h t -> Cons (Cons i h) (preprend i t)
+        end
+        
+    let rec ghost function all_indices (dims: list int) (pos: int) : list (list int)
+    requires { positive dims } 
+    requires { dims <> Nil -> 0 <= pos <= head dims }
+    (*variant { if dims = Nil then 0 else head dims - pos }*)
+    variant { length dims  }
+    =
+        match dims with
+        | Nil -> Cons Nil Nil
+        | Cons h t ->
+            if pos = h then Nil
+            else 
+                let rest = all_indices t 0 in
+                let current = preprend pos rest in
+                current ++ all_indices dims (pos + 1)
+
+        end
+
+end
