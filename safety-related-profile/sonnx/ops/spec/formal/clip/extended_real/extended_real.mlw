@@ -1,0 +1,555 @@
+module ExtendedReal
+
+    use real.Real
+
+    (*Real Representation of values that are not real values*)
+    constant inf_real  : real
+    constant neg_inf_real : real
+    constant not_a_number : real
+
+    (* Axiom ensuring that constants are differente*)
+    axiom diff_constants:   inf_real <> neg_inf_real /\ 
+                            inf_real <> not_a_number /\ 
+                            neg_inf_real <> not_a_number /\
+                            inf_real <> 0.0 /\
+                            neg_inf_real <> 0.0 /\
+                            not_a_number <> 0.0
+
+    (*Why do we need the axiom above?*)
+    (*First it would be very strange say that inf_real = neg_inf_real or any other combination of these special values
+      Secound, without this our function to_real, will no prove because we would not be able
+      to distinguish between these special values when converting from extended_real to real
+    *)
+
+    (*Extended Real Representation*)
+    type extended_real = 
+        | Some real
+        | PosInf
+        | NegInf
+        | NaN
+
+    (*---------------------------------------------------------*)
+    (* Valid/Verification functions *)
+    (*---------------------------------------------------------*)
+    
+    (* Checks if a real is positive "infinite" *)
+    let ghost function is_infinite (r: real) : bool =
+        r = inf_real
+
+    (* Checks if a real is negative "infinite" *)
+    let ghost function is_neg_infinite (r: real) : bool =
+        r = neg_inf_real
+    
+    (* Check if a real is a NaN *)
+    let ghost function is_nan (r: real) : bool =
+        r = not_a_number
+    
+    (* Check if a real is not a "Special Value" *)
+    let ghost function is_valid_real (r: real) : bool =
+        r <> inf_real && r <> neg_inf_real && r <> not_a_number
+    
+    (* Checks if an extended real is valid (i.e., not Some inf_real, neg_inf_real, or not_a_number) *)
+    let ghost function valid_extended_real (x: extended_real) : bool =
+        match x with
+        | Some r -> r <> inf_real && r <> neg_inf_real && r <> not_a_number
+        | PosInf -> true
+        | NegInf -> true
+        | NaN -> true
+        end
+
+
+    (*---------------------------------------------------------*)
+    (* Extended Real Conversion *)
+    (*---------------------------------------------------------*)
+
+    (* Conversion from real to extended_real *)
+    let ghost function to_extended_real (r: real) : extended_real =
+        if r = inf_real then
+            PosInf
+        else if r = neg_inf_real then
+            NegInf
+        else if r = not_a_number then
+            NaN
+        else
+            Some r
+
+    (* Conversion from extended_real to real *)
+    let ghost function to_real (x: extended_real) : real 
+    requires { valid_extended_real(x) }
+    ensures { result = inf_real <-> x = PosInf }
+    ensures { result = neg_inf_real <-> x = NegInf }
+    ensures { result = not_a_number <-> x = NaN }
+    ensures { forall r. x = Some r -> result = r }
+    =
+        match x with
+        | Some r -> r
+        | PosInf -> inf_real
+        | NegInf -> neg_inf_real
+        | NaN -> not_a_number
+        end
+    
+    (*---------------------------------------------------------*)
+    (* Extended Real Conversion Correctness Lemmas *)
+    (*---------------------------------------------------------*)
+    lemma correctness_to_extended_real:
+        forall r:real. 
+        (to_extended_real r = PosInf <-> r = inf_real) \/
+        (to_extended_real r = NegInf <-> r = neg_inf_real) \/ 
+        (to_extended_real r = NaN <-> r = not_a_number) \/
+        (to_extended_real r = Some r <-> r <> inf_real && r <> neg_inf_real && r <> not_a_number)
+    
+    lemma correctness_to_real:
+        forall x:extended_real.
+        valid_extended_real x ->
+        (match x with
+            | Some r -> to_real x = r /\ r <> inf_real && r <> neg_inf_real && r <> not_a_number
+            | PosInf -> to_real x = inf_real
+            | NegInf -> to_real x = neg_inf_real
+            | NaN -> to_real x = not_a_number
+        end)
+    
+    (*---------------------------------------------------------*)
+    (* Extended Real Arithmetic Operations *)
+    (*---------------------------------------------------------*)
+
+    (*----------------------------*)
+    (* Addition *)
+    (*----------------------------*)
+    
+    (* Sum of two reals *)
+    let ghost function sum (r1 r2: real) : real =
+        if is_nan r1 || is_nan r2 then
+            not_a_number
+        else if is_infinite r1 && is_infinite r2 then
+            inf_real
+        else if is_neg_infinite r1 && is_neg_infinite r2 then
+            neg_inf_real
+        else if (is_infinite r1 && is_neg_infinite r2) || (is_neg_infinite r1 && is_infinite r2) then
+            not_a_number
+        else if is_infinite r1 then
+            inf_real
+        else if is_infinite r2 then
+            inf_real
+        else if is_neg_infinite r1 then
+            neg_inf_real
+        else if is_neg_infinite r2 then
+            neg_inf_real
+        else
+            r1 + r2
+
+    
+    (* Sum of two extended reals *)
+    let ghost function sum_ext (x1 x2 : extended_real) : extended_real 
+    requires { valid_extended_real(x1) /\ valid_extended_real(x2) }
+    ensures { to_real(result) = sum (to_real(x1)) (to_real(x2)) }
+    =
+        match x1, x2 with
+        | Some r1, Some r2 -> to_extended_real (sum r1 r2)
+        | Some _, PosInf -> PosInf
+        | PosInf, Some _ -> PosInf
+        | Some _, NegInf -> NegInf
+        | NegInf, Some _ -> NegInf
+        | PosInf, PosInf -> PosInf
+        | NegInf, NegInf -> NegInf
+        | PosInf, NegInf -> NaN
+        | NegInf, PosInf -> NaN
+        | _, _ -> NaN
+        end
+
+    
+    (*----------------------------*)
+    (* Subtraction *)
+    (*----------------------------*)
+
+    (* Subtraction of two reals *)
+    let ghost function subtract (r1 r2: real) : real =
+        if is_nan r1 || is_nan r2 then
+            not_a_number
+        else if is_infinite r1 && is_infinite r2 then
+            not_a_number
+        else if is_neg_infinite r1 && is_neg_infinite r2 then
+            not_a_number
+        else if is_infinite r1 && is_neg_infinite r2 then
+            inf_real
+        else if is_neg_infinite r1 && is_infinite r2 then
+            neg_inf_real
+        else if is_infinite r1 then
+            inf_real
+        else if is_neg_infinite r1 then
+            neg_inf_real
+        else if is_infinite r2 then
+            neg_inf_real
+        else if is_neg_infinite r2 then
+            inf_real
+        else
+            r1 - r2
+
+    (* Subtraction of two extended reals *)
+    let ghost function subtract_ext (x1 x2 : extended_real) : extended_real 
+    requires { valid_extended_real(x1) /\ valid_extended_real(x2) }
+    ensures { to_real(result) = subtract (to_real(x1)) (to_real(x2)) }
+    =
+        match x1, x2 with
+        | Some r1, Some r2 -> to_extended_real (subtract r1 r2)
+        | Some _, PosInf -> NegInf
+        | PosInf, Some _ -> PosInf
+        | Some _, NegInf -> PosInf
+        | NegInf, Some _ -> NegInf
+        | PosInf, PosInf -> NaN
+        | NegInf, NegInf -> NaN
+        | PosInf, NegInf -> PosInf
+        | NegInf, PosInf -> NegInf
+        | _, _ -> NaN
+        end
+    
+    (*----------------------------*)
+    (* Multiplication *)
+    (*----------------------------*)
+
+    (* Multiplication of two reals *)
+
+    let ghost function multiply (r1 r2: real) : real =
+        if is_nan r1 || is_nan r2 then
+            not_a_number
+        else if is_infinite r1 && is_infinite r2 then
+            inf_real
+        else if is_infinite r1 && is_neg_infinite r2 then
+            neg_inf_real
+        else if is_neg_infinite r1 && is_infinite r2 then
+            neg_inf_real
+        else if is_neg_infinite r1 && is_neg_infinite r2 then
+            inf_real
+        else if is_infinite r1 && is_valid_real r2 then
+            if r2 > 0.0 then inf_real else if r2 < 0.0 then neg_inf_real else not_a_number
+        else if is_valid_real r1 && is_infinite r2 then
+            if r1 > 0.0 then inf_real else if r1 < 0.0 then neg_inf_real else not_a_number
+        else if is_neg_infinite r1 && is_valid_real r2 then
+            if r2 > 0.0 then neg_inf_real else if r2 < 0.0 then inf_real else not_a_number
+        else if is_valid_real r1 && is_neg_infinite r2 then
+            if r1 > 0.0 then neg_inf_real else if r1 < 0.0 then inf_real else not_a_number
+        else
+            r1 * r2
+
+    (* Multiplication of two extended reals *)
+    let ghost function multiply_ext (x1 x2 : extended_real) : extended_real 
+    requires { valid_extended_real(x1) /\ valid_extended_real(x2) }
+    ensures { to_real(result) = multiply (to_real(x1)) (to_real(x2)) }
+    =
+        match x1, x2 with
+        | Some r1, Some r2 -> to_extended_real (multiply r1 r2)
+        | Some r1, PosInf ->
+            if r1 > 0.0 then PosInf else if r1 < 0.0 then NegInf else NaN
+        | PosInf, Some r2 ->
+            if r2 > 0.0 then PosInf else if r2 < 0.0 then NegInf else NaN
+        | Some r1, NegInf ->
+            if r1 > 0.0 then NegInf else if r1 < 0.0 then PosInf else NaN
+        | NegInf, Some r2 ->
+            if r2 > 0.0 then NegInf else if r2 < 0.0 then PosInf else NaN
+        | PosInf, PosInf -> PosInf
+        | NegInf, NegInf -> PosInf
+        | PosInf, NegInf -> NegInf
+        | NegInf, PosInf -> NegInf
+        | _, _ -> NaN
+        end
+    
+    (*----------------------------*)
+    (* Division *)
+    (*----------------------------*)
+
+    (* Division of two reals *)
+    let ghost function divide (r1 r2: real) : real 
+    requires { is_valid_real r2 -> r2 <> 0.0 }
+    =
+    if is_nan r1 || is_nan r2 then
+        not_a_number
+    else if is_infinite r1 && is_infinite r2 then
+        not_a_number
+    else if is_neg_infinite r1 && is_neg_infinite r2 then
+        not_a_number
+    else if is_infinite r1 && is_neg_infinite r2 then
+        not_a_number
+    else if is_neg_infinite r1 && is_infinite r2 then
+        not_a_number
+    else if is_infinite r1 && is_valid_real r2 then
+        if r2 > 0.0 then inf_real else neg_inf_real
+    else if is_neg_infinite r1 && is_valid_real r2 then
+        if r2 > 0.0 then neg_inf_real else inf_real
+    else if is_valid_real r1 && is_infinite r2 then
+        0.0
+    else if is_valid_real r1 && is_neg_infinite r2 then
+        0.0
+    else 
+        r1 / r2 
+
+    (*Division of two extended reals *)
+    let ghost function divide_ext (x1 x2 : extended_real) : extended_real 
+    requires { valid_extended_real(x1) /\ valid_extended_real(x2) }
+    requires { match x2 with
+                | Some r2 -> r2 <> 0.0
+                | PosInf -> true
+                | NegInf -> true
+                | NaN -> true
+            end }
+    ensures { to_real(result) = divide (to_real(x1)) (to_real(x2)) }
+    =
+        match x1, x2 with
+        | Some r1, Some r2 -> to_extended_real (divide r1 r2)
+        | PosInf, PosInf -> NaN
+        | NegInf, NegInf -> NaN
+        | PosInf, NegInf -> NaN
+        | NegInf, PosInf -> NaN
+        | PosInf, Some r2 ->
+            if r2 > 0.0 then PosInf else NegInf
+        | NegInf, Some r2 ->
+            if r2 > 0.0 then NegInf else PosInf
+        | Some _, PosInf -> Some 0.0
+        | Some _, NegInf -> Some 0.0
+        | _, _ -> NaN
+        end
+
+    (*---------------------------------------------------------*)
+    (* Extended Real Arithmetic Operations *)
+    (*---------------------------------------------------------*)
+
+    (*----------------------------*)
+    (* Less *)
+    (*----------------------------*)
+
+    (* Less than comparison of two reals *)
+    let ghost function less (x1 x2 : real) : bool =
+        if is_nan x1 || is_nan x2 then
+            false
+        else if is_infinite x1 && is_infinite x2 then
+            false
+        else if is_neg_infinite x1 && is_neg_infinite x2 then
+            false
+        else if is_infinite x1 && is_neg_infinite x2 then
+            false
+        else if is_neg_infinite x1 && is_infinite x2 then
+            true
+        else if is_infinite x1 then
+            false
+        else if is_infinite x2 then
+            true
+        else if is_neg_infinite x1 then
+            true
+        else if is_neg_infinite x2 then
+            false
+        else
+            x1 < x2
+
+    (* Less than comparison of two extended reals *)
+    let ghost function less_ext (x1 x2 : extended_real) : bool 
+    requires { valid_extended_real(x1) /\ valid_extended_real(x2) }
+    ensures { result = less (to_real(x1)) (to_real(x2)) }
+    =
+        match x1, x2 with
+        | Some r1, Some r2 -> less r1 r2
+        | Some _, PosInf -> true
+        | PosInf, Some _ -> false
+        | Some _, NegInf -> false
+        | NegInf, Some _ -> true
+        | PosInf, PosInf -> false
+        | NegInf, NegInf -> false
+        | PosInf, NegInf -> false
+        | NegInf, PosInf -> true
+        | _, _ -> false
+        end
+    
+    (*----------------------------*)
+    (* Less or Equal *)
+    (*----------------------------*)
+
+    (* Less or equal comparison of two real *)
+    let ghost function less_equal (x1 x2 : real) : bool =
+        if is_nan x1 || is_nan x2 then
+            false
+        else if is_infinite x1 && is_infinite x2 then
+            true
+        else if is_neg_infinite x1 && is_neg_infinite x2 then
+            true
+        else if is_infinite x1 && is_neg_infinite x2 then
+            false
+        else if is_neg_infinite x1 && is_infinite x2 then
+            true
+        else if is_infinite x1 then
+            false
+        else if is_infinite x2 then
+            true
+        else if is_neg_infinite x1 then
+            true
+        else if is_neg_infinite x2 then
+            false
+        else
+            x1 <= x2
+    
+    (* Less or equal comparison of two extended reals *)
+    let ghost function less_equal_ext (x1 x2 : extended_real) : bool 
+    requires { valid_extended_real(x1) /\ valid_extended_real(x2) }
+    ensures { result = less_equal (to_real(x1)) (to_real(x2)) }
+    =
+        match x1, x2 with
+        | Some r1, Some r2 -> less_equal r1 r2
+        | Some _, PosInf -> true
+        | PosInf, Some _ -> false
+        | Some _, NegInf -> false
+        | NegInf, Some _ -> true
+        | PosInf, PosInf -> true
+        | NegInf, NegInf -> true
+        | PosInf, NegInf -> false
+        | NegInf, PosInf -> true
+        | _, _ -> false
+        end
+
+    (*----------------------------*)
+    (* Greater *)
+    (*----------------------------*)
+    
+    (* Greater than comparison of two reals *)
+    let ghost function greater (x1 x2 : real) : bool =
+        if is_nan x1 || is_nan x2 then
+            false
+        else if is_infinite x1 && is_infinite x2 then
+            false
+        else if is_neg_infinite x1 && is_neg_infinite x2 then
+            false
+        else if is_infinite x1 && is_neg_infinite x2 then
+            true
+        else if is_neg_infinite x1 && is_infinite x2 then
+            false
+        else if is_infinite x1 then
+            true
+        else if is_infinite x2 then
+            false
+        else if is_neg_infinite x1 then
+            false
+        else if is_neg_infinite x2 then
+            true
+        else
+            x1 > x2
+    
+    (* Greater than comparison of two extended reals *)
+    let ghost function greater_ext (x1 x2 : extended_real) : bool 
+    requires { valid_extended_real(x1) /\ valid_extended_real(x2) }
+    ensures { result = greater (to_real(x1)) (to_real(x2)) }
+    =
+        match x1, x2 with
+        | Some r1, Some r2 -> greater r1 r2
+        | Some _, PosInf -> false
+        | PosInf, Some _ -> true
+        | Some _, NegInf -> true
+        | NegInf, Some _ -> false
+        | PosInf, PosInf -> false
+        | NegInf, NegInf -> false
+        | PosInf, NegInf -> true
+        | NegInf, PosInf -> false
+        | _, _ -> false
+        end
+
+    (*----------------------------*)
+    (* Greater or Equal *)
+    (*----------------------------*)
+
+    (* Greater or equal comparison of two real *)
+    let ghost function greater_equal (x1 x2 : real) : bool =
+        if is_nan x1 || is_nan x2 then
+            false
+        else if is_infinite x1 && is_infinite x2 then
+            true
+        else if is_neg_infinite x1 && is_neg_infinite x2 then
+            true
+        else if is_infinite x1 && is_neg_infinite x2 then
+            true
+        else if is_neg_infinite x1 && is_infinite x2 then
+            false
+        else if is_infinite x1 then
+            true
+        else if is_infinite x2 then
+            false
+        else if is_neg_infinite x1 then
+            false
+        else if is_neg_infinite x2 then
+            true
+        else
+            x1 >= x2
+
+    (* Greater or equal comparison of two extended reals *)
+    let ghost function greater_equal_ext (x1 x2 : extended_real) : bool 
+    requires { valid_extended_real(x1) /\ valid_extended_real(x2) }
+    ensures { result = greater_equal (to_real(x1)) (to_real(x2)) }
+    =
+        match x1, x2 with
+        | Some r1, Some r2 -> greater_equal r1 r2
+        | Some _, PosInf -> false
+        | PosInf, Some _ -> true
+        | Some _, NegInf -> true
+        | NegInf, Some _ -> false
+        | PosInf, PosInf -> true
+        | NegInf, NegInf -> true
+        | PosInf, NegInf -> true
+        | NegInf, PosInf -> false
+        | _, _ -> false
+        end
+
+    (*----------------------------*)
+    (* Min *)
+    (*----------------------------*)
+
+    (* Minimum of two reals *)
+    let ghost function min (r1 r2: real) : real =
+        if is_nan r1 || is_nan r2 then
+            not_a_number
+        else if less r1 r2 then
+            r1
+        else
+            r2
+    
+    (* Minimum of two extended reals *)
+    let ghost function min_ext (x1 x2 : extended_real) : extended_real 
+    requires { valid_extended_real(x1) /\ valid_extended_real(x2) }
+    ensures { to_real(result) = min (to_real(x1)) (to_real(x2)) }
+    =
+        match x1, x2 with
+        | Some r1, Some r2 -> to_extended_real (min r1 r2)
+        | Some _, PosInf -> x1
+        | PosInf, Some _ -> x2
+        | Some _, NegInf -> NegInf
+        | NegInf, Some _ -> NegInf
+        | PosInf, PosInf -> PosInf
+        | NegInf, NegInf -> NegInf
+        | PosInf, NegInf -> NegInf
+        | NegInf, PosInf -> NegInf
+        | _, _ -> NaN
+        end
+    
+    (*----------------------------*)
+    (* Max *)
+    (*----------------------------*)
+
+    (* Maximum of two reals *)
+    let ghost function max (r1 r2: real) : real =
+        if is_nan r1 || is_nan r2 then
+            not_a_number
+        else if greater r1 r2 then
+            r1
+        else
+            r2
+    
+    (* Maximum of two extended reals *)
+    let ghost function max_ext (x1 x2 : extended_real) : extended_real 
+    requires { valid_extended_real(x1) /\ valid_extended_real(x2) }
+    ensures { to_real(result) = max (to_real(x1)) (to_real(x2)) }
+    =
+        match x1, x2 with
+        | Some r1, Some r2 -> to_extended_real (max r1 r2)
+        | Some _, PosInf -> PosInf
+        | PosInf, Some _ -> PosInf
+        | Some _, NegInf -> x1
+        | NegInf, Some _ -> x2
+        | PosInf, PosInf -> PosInf
+        | NegInf, NegInf -> NegInf
+        | PosInf, NegInf -> PosInf
+        | NegInf, PosInf -> PosInf
+        | _, _ -> NaN
+        end
+end

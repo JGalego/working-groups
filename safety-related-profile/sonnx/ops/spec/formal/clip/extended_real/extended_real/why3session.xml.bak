@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE why3session PUBLIC "-//Why3//proof session v5//EN"
+"https://www.why3.org/why3session.dtd">
+<why3session shape_version="6">
+<prover id="0" name="Z3" version="4.13.4" timelimit="1" steplimit="0" memlimit="1000"/>
+<file format="whyml" proved="true">
+<path name=".."/><path name="extended_real.mlw"/>
+<theory name="ExtendedReal" proved="true">
+ <goal name="to_real&#39;vc" expl="VC for to_real" proved="true">
+ <proof prover="0"><result status="valid" time="0.013963" steps="2607"/></proof>
+ </goal>
+ <goal name="correctness_to_extended_real" proved="true">
+ <proof prover="0"><result status="valid" time="0.000001" steps="255"/></proof>
+ </goal>
+ <goal name="correctness_to_real" proved="true">
+ <proof prover="0"><result status="valid" time="0.007738" steps="6556"/></proof>
+ </goal>
+ <goal name="sum_ext&#39;vc" expl="VC for sum_ext" proved="true">
+ <proof prover="0"><result status="valid" time="0.028342" steps="17160"/></proof>
+ </goal>
+ <goal name="subtract_ext&#39;vc" expl="VC for subtract_ext" proved="true">
+ <proof prover="0"><result status="valid" time="0.012601" steps="20622"/></proof>
+ </goal>
+ <goal name="multiply_ext&#39;vc" expl="VC for multiply_ext" proved="true">
+ <proof prover="0"><result status="valid" time="0.006400" steps="23387"/></proof>
+ </goal>
+ <goal name="divide&#39;vc" expl="VC for divide" proved="true">
+ <proof prover="0"><result status="valid" time="0.008188" steps="7580"/></proof>
+ </goal>
+ <goal name="divide_ext&#39;vc" expl="VC for divide_ext" proved="true">
+ <proof prover="0"><result status="valid" time="0.009016" steps="18697"/></proof>
+ </goal>
+ <goal name="less_ext&#39;vc" expl="VC for less_ext" proved="true">
+ <proof prover="0"><result status="valid" time="0.004487" steps="14046"/></proof>
+ </goal>
+ <goal name="less_equal_ext&#39;vc" expl="VC for less_equal_ext" proved="true">
+ <proof prover="0"><result status="valid" time="0.000001" steps="15088"/></proof>
+ </goal>
+ <goal name="greater_ext&#39;vc" expl="VC for greater_ext" proved="true">
+ <proof prover="0"><result status="valid" time="0.000001" steps="15689"/></proof>
+ </goal>
+ <goal name="greater_equal_ext&#39;vc" expl="VC for greater_equal_ext" proved="true">
+ <proof prover="0"><result status="valid" time="0.004830" steps="14342"/></proof>
+ </goal>
+ <goal name="min_ext&#39;vc" expl="VC for min_ext" proved="true">
+ <proof prover="0"><result status="valid" time="0.007024" steps="17072"/></proof>
+ </goal>
+</theory>
+</file>
+</why3session>
