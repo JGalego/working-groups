@@ -1,0 +1,200 @@
+module ExtendedReal2
+    use real.Real
+
+    (* Extended Real Representation *)
+    type extended_real =
+    | Some real
+    | PosInf
+    | NegInf
+    | NaN
+
+    (*---------------------------------------------------------*)
+    (* Valid/Verification functions *)
+    (*---------------------------------------------------------*)
+    
+    (* Checks if a real is positive "infinite" *)
+    predicate is_infinite (r:real)
+
+    (* Check if a real is negative "infinite" *)
+    predicate is_neg_infinite (r:real)
+
+    (* Check if a real is NaN *)
+    predicate is_nan (r:real)
+
+    (* Check if a real is not a "Special Value" *)
+    predicate is_valid_real (r:real)
+
+    (* Check if extended real is valid*)
+    predicate is_valid_extended_real (x:extended_real) =
+        match x with
+        | Some r -> is_valid_real(r)
+        | PosInf -> true
+        | NegInf -> true
+        | NaN -> true
+        end
+
+    (*---------------------------------------------------------*)
+    (* Extended Real Conversion *)
+    (*---------------------------------------------------------*)
+
+    (* Conversion from real to extended_real *)
+    val function to_extended_real (r:real) : extended_real
+        ensures { is_infinite r -> result = PosInf }
+        ensures { is_neg_infinite r -> result = NegInf }
+        ensures { is_nan r -> result = NaN }
+        ensures { is_valid_real r -> result = Some r }
+
+    (* Conversion from extended_real to real *)
+    val function to_real (x:extended_real) : real
+        requires { is_valid_extended_real(x) }
+        ensures {
+            match x with
+            | Some r -> result = r
+            | PosInf -> is_infinite(result)
+            | NegInf -> is_neg_infinite(result)
+            | NaN -> is_nan(result)
+            end
+        }
+
+    (*---------------------------------------------------------*)
+    (* Extended Real Conversion Correctness Lemmas *)
+    (*---------------------------------------------------------*)
+    lemma correctness_to_extended_real:
+        forall r:real.
+            (is_infinite(r) -> to_extended_real(r) = PosInf) \/
+            (is_neg_infinite(r) -> to_extended_real(r) = NegInf) \/
+            (is_nan(r) -> to_extended_real(r) = NaN) \/
+            (is_valid_real(r) -> to_extended_real(r) = Some r)
+
+    lemma correctness_to_real:
+        forall x:extended_real.
+            is_valid_extended_real(x) ->
+            (match x with
+            | Some r -> to_real(x) = r
+            | PosInf -> is_infinite(to_real(x))
+            | NegInf -> is_neg_infinite(to_real(x))
+            | NaN -> is_nan(to_real(x))
+            end)
+
+    (*---------------------------------------------------------*)
+    (* Extended Real Arithmetic Operations *)
+    (*---------------------------------------------------------*)
+
+    (*----------------------------*)
+    (* Addition *)
+    (*----------------------------*)
+
+    (* Sum  of two extended reals *)    
+    val function add_extended_real (x1 x2:extended_real) : extended_real
+        requires { is_valid_extended_real(x1) }
+        requires { is_valid_extended_real(x2) }
+        ensures { match x1 , x2 with
+                  | Some r1 , Some r2 -> result = Some (r1 + r2)
+                  | Some _ , PosInf -> result = PosInf
+                  | PosInf , Some _ -> result = PosInf   
+                  | Some _ , NegInf -> result = NegInf
+                  | NegInf , Some _ -> result = NegInf
+                  | PosInf , PosInf -> result = PosInf
+                  | NegInf , NegInf -> result = NegInf
+                  | PosInf , NegInf -> result = NaN
+                  | NegInf , PosInf -> result = NaN
+                  | _ , _ -> result = NaN
+                  end }
+        ensures { is_valid_extended_real(result) }
+
+
+    (*----------------------------*)
+    (*Check properties on Addition*)
+    (*----------------------------*)
+    lemma refinement_mapping_property_addition:
+        forall x1 x2:extended_real.
+            is_valid_extended_real x1 ->
+            is_valid_extended_real x2 ->
+            match x1, x2 with
+            | Some r1, Some r2 -> to_real (add_extended_real x1 x2) = r1 + r2
+            | Some _ , PosInf -> is_infinite (to_real (add_extended_real x1 x2))
+            | PosInf , Some _ -> is_infinite (to_real (add_extended_real x1 x2))
+            | Some _ , NegInf -> is_neg_infinite (to_real (add_extended_real x1 x2))
+            | NegInf , Some _ -> is_neg_infinite (to_real (add_extended_real x1 x2))
+            | PosInf , PosInf -> is_infinite (to_real (add_extended_real x1 x2))
+            | NegInf , NegInf -> is_neg_infinite (to_real (add_extended_real x1 x2))
+            | PosInf , NegInf -> is_nan (to_real (add_extended_real x1 x2))
+            | NegInf , PosInf -> is_nan (to_real (add_extended_real x1 x2))
+            | _ , _ -> is_nan (to_real (add_extended_real x1 x2))
+            end
+    
+end
+
+
+module TensorExtendedReal2
+    use real.Real
+    use ExtendedReal2
+    use tensor.Tensor
+    use list.List
+    use tensor.Range
+
+    (* Check if a tensor is valid *)
+    predicate is_valid_tensor_extended_real (t: tensor extended_real) =
+        is_valid_extended_real (t.background) &&
+        forall ks: list int.
+            valid ks t -> is_valid_extended_real (t.data ks)
+
+    (* Convert a tensor of extended reals to a tensor of reals *)
+    let ghost function ext_tensor_to_tensor_real (t: tensor extended_real) : tensor real
+        requires { is_valid_tensor_extended_real(t) }
+        ensures  { result.dims = t.dims }
+        ensures  { result.background = to_real(t.background) }
+        ensures  { forall ks: list int.
+                    valid ks t -> result.data ks = to_real(t.data ks) }
+        = {
+            dims = t.dims; 
+            background = to_real(t.background);
+            data = fun ks -> if (valid ks t.dims) then to_real(t.data ks) else to_real(t.background)
+        }
+
+
+    (*Simulate an ONNX operator*)
+    (*Lets assume that the operator just receive two tensors and do an addition pointwise*)
+    let ghost function add_real_operation (t1 t2: tensor real) : data real
+    = fun ks ->
+        if (valid ks t1.dims && valid ks t2.dims) then
+            t1.data ks + t2.data ks
+        else
+            t1.background
+
+
+    let ghost function add_operator (t1 t2: tensor real) : tensor real
+        ensures  { result.dims = t1.dims }
+        ensures  { result.background = t1.background }
+        ensures  { forall ks: list int.
+                      valid ks t1 && valid ks t2 -> result.data ks = t1.data ks + t2.data ks }
+        = {
+            dims = t1.dims;
+            background = t1.background;
+            data = add_real_operation t1 t2
+        }
+
+    
+    let ghost function extended_real_add_operator (t1 t2: tensor extended_real) : tensor extended_real
+        requires { is_valid_tensor_extended_real(t1) }
+        requires { is_valid_tensor_extended_real(t2) }
+        ensures  { is_valid_tensor_extended_real result }
+        ensures  { result.dims = (ext_tensor_to_tensor_real result).dims }
+        ensures  { to_real (result.background) = (ext_tensor_to_tensor_real result).background }    
+        ensures { forall ks: list int.
+                    valid ks result ->
+                    to_real (result.data ks) = (ext_tensor_to_tensor_real result).data ks }
+        (* Cant prove this because add_operator does not handle extended reals values, partially refinement mapping would work, i believe *)
+        (* I am able to prove that dims are the and background is the same, soo, basically i can prove the operator ~= *)
+        ensures { ext_tensor_to_tensor_real result =
+                    add_operator (ext_tensor_to_tensor_real t1) (ext_tensor_to_tensor_real t2) }
+        = {
+            dims = t1.dims;
+            background = t1.background;
+            data = fun ks ->
+                if (valid ks t1.dims && valid ks t2.dims) then
+                    add_extended_real (t1.data ks) (t2.data ks) 
+                else
+                    t1.background
+        }
+end
