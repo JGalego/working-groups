@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE why3session PUBLIC "-//Why3//proof session v5//EN"
+"https://www.why3.org/why3session.dtd">
+<why3session shape_version="6">
+<prover id="0" name="CVC5" version="1.2.1" timelimit="1" steplimit="0" memlimit="1000"/>
+<prover id="1" name="Z3" version="4.13.4" timelimit="1" steplimit="0" memlimit="1000"/>
+<file format="whyml" proved="true">
+<path name=".."/><path name="ext_real_no_constants_2.mlw"/>
+<theory name="ExtendedReal3" proved="true">
+ <goal name="correctness_to_extended_real" proved="true">
+ <proof prover="1"><result status="valid" time="0.000001" steps="1774"/></proof>
+ </goal>
+ <goal name="correctness_to_real" proved="true">
+ <proof prover="1"><result status="valid" time="0.000001" steps="368"/></proof>
+ </goal>
+ <goal name="refinement_mapping_property_addition" proved="true">
+ <proof prover="1"><result status="valid" time="0.004212" steps="986"/></proof>
+ </goal>
+</theory>
+<theory name="TensorialExtendedReal3" proved="true">
+ <goal name="ext_tensor_to_tensor_real&#39;vc" expl="VC for ext_tensor_to_tensor_real" proved="true">
+ <proof prover="1"><result status="valid" time="0.012254" steps="61259"/></proof>
+ </goal>
+ <goal name="add_real_operation&#39;vc" expl="VC for add_real_operation" proved="true">
+ <proof prover="1"><result status="valid" time="0.007520" steps="46742"/></proof>
+ </goal>
+ <goal name="add_operator&#39;vc" expl="VC for add_operator" proved="true">
+ <proof prover="1"><result status="valid" time="0.007954" steps="50485"/></proof>
+ </goal>
+ <goal name="add_ext_operation&#39;vc" expl="VC for add_ext_operation" proved="true">
+ <proof prover="1"><result status="valid" time="0.007316" steps="47094"/></proof>
+ </goal>
+ <goal name="extended_real_add_operator&#39;vc" expl="VC for extended_real_add_operator" proved="true">
+ <proof prover="0"><result status="valid" time="0.775001" steps="118117"/></proof>
+ </goal>
+</theory>
+</file>
+</why3session>
