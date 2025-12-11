@@ -1,0 +1,181 @@
+module ExtendedReal3
+
+    use real.Real 
+
+    constant max_real : real (* defined when cloning *)
+
+    (* Extended Real Representation *)
+    type extended_real = 
+    | Some real
+    | PosInf
+    | NegInf
+    | NaN
+
+    (*---------------------------------------------------------*)
+    (* Valid/Verification functions *)
+    (*---------------------------------------------------------*)
+
+    (* Checks if a real is positive "infinite" *)
+    predicate is_infinite (r:real) = r > max_real
+
+    (* Check if a real is negative "infinite" *)
+    predicate is_neg_infinite (r:real) = r < - max_real
+
+    (* Check if a real is NaN *)
+    predicate is_nan (r:real)
+
+    (* Check if a real is not a "Special Value" *)
+    predicate is_valid_real (r:real) = not (is_infinite r \/ is_neg_infinite r \/ is_nan r)
+
+    predicate ok (r:real) =
+        (is_infinite r \/ is_neg_infinite r \/ is_nan r \/ is_valid_real r) /\
+        not (is_infinite r /\ is_neg_infinite r) /\
+        not (is_infinite r /\ is_nan r) /\
+        not (is_infinite r /\ is_valid_real r) /\
+        not (is_neg_infinite r /\ is_nan r) /\
+        not (is_neg_infinite r /\ is_valid_real r) /\
+        not (is_nan r /\ is_valid_real r)
+    
+
+    (*---------------------------------------------------------*)
+    (* Extended Real Conversion *)
+    (*---------------------------------------------------------*)
+
+    (* Conversion from extended_real to real *)
+    val function to_real (x:extended_real) : real
+        ensures {
+            match x with
+            | Some r -> is_valid_real result /\
+                        not is_infinite result /\
+                        not is_neg_infinite result /\
+                        not is_nan result /\
+                        result = r
+            | PosInf -> is_infinite result /\
+                        not is_neg_infinite result /\
+                        not is_nan result /\
+                        not is_valid_real result
+            | NegInf -> is_neg_infinite result /\
+                        not is_infinite result /\
+                        not is_nan result /\
+                        not is_valid_real result
+            | NaN -> is_nan result /\
+                        not is_infinite result /\
+                        not is_neg_infinite result /\
+                        not is_valid_real result
+            end
+        }
+
+    lemma ok_to_real:
+        forall x:extended_real. ok(to_real(x))    
+
+    function add_real (r1 r2: real) : real 
+    = r1 + r2
+
+    predicate add_extended_real_refinement (x1 x2:extended_real) (result:real) =
+    (* Both Real Values *)
+    (is_valid_real (to_real x1) /\ is_valid_real (to_real x2) ->
+        result = add_real (to_real x1) (to_real x2)) /\
+    (* Both PosInf Values *)
+    (is_infinite (to_real x1) /\ is_infinite (to_real x2) ->
+        is_infinite result /\ is_infinite (add_real (to_real x1) (to_real x2))) /\
+    (* Both NegInf Values *)
+    (is_neg_infinite (to_real x1) /\ is_neg_infinite (to_real x2) -> 
+        is_neg_infinite result /\ is_neg_infinite (add_real (to_real x1) (to_real x2))) /\
+    (* One PosInf and One Real Value *)
+    ((is_infinite (to_real x1) /\ is_valid_real (to_real x2)) \/
+     (is_valid_real (to_real x1) /\ is_infinite (to_real x2)) ->
+        is_infinite result) /\
+    (* One NegInf and One Real Value *)
+    ((is_neg_infinite (to_real x1) /\ is_valid_real (to_real x2)) \/
+     (is_valid_real (to_real x1) /\ is_neg_infinite (to_real x2)) ->
+        is_neg_infinite result) /\
+    (* One PosInf and One NegInf Value *)
+    ((is_infinite (to_real x1) /\ is_neg_infinite (to_real x2)) \/
+     (is_neg_infinite (to_real x1) /\ is_infinite (to_real x2)) ->
+        is_nan result) /\
+    (* One NaN Input *)
+    (is_nan (to_real x1) \/ is_nan (to_real x2) ->
+        is_nan result)
+
+    (* Sum of two extended reals *)
+    let ghost function add_extended_real (x1 x2:extended_real) : extended_real
+    ensures { add_extended_real_refinement x1 x2 (to_real result) }
+    = 
+        match x1, x2 with
+            | Some r1, Some r2 -> Some (add_real r1 r2)
+            | Some _ , PosInf -> PosInf
+            | PosInf, Some _ -> PosInf
+            | Some _ , NegInf -> NegInf
+            | NegInf, Some _ -> NegInf
+            | PosInf, PosInf -> PosInf
+            | NegInf, NegInf -> NegInf
+            | PosInf, NegInf -> NaN
+            | NegInf, PosInf -> NaN
+            | _, _ -> NaN
+        end
+    
+
+end
+
+module TensorExtendedReal3
+    use real.Real
+    use ExtendedReal3
+    use tensor.Tensor
+    use list.List
+    use tensor.Range
+
+
+    (* Convert a tensor of extended reals to a tensor of reals *)
+    let ghost function ext_tensor_to_tensor_real (t: tensor extended_real) : tensor real
+        ensures  { result.dims = t.dims }
+        ensures  { result.background = to_real(t.background) }
+        ensures  { forall ks: list int.
+                    valid ks t -> result.data ks = to_real(t.data ks) }
+        = {
+            dims = t.dims; 
+            background = to_real(t.background);
+            data = fun ks -> if (valid ks t.dims) then to_real(t.data ks) else to_real(t.background)
+        }
+
+    (*Simulate an ONNX operator*)
+    (*Lets assume that the operator just receive two tensors and do an addition pointwise*)
+    let ghost function add_real_operation (t1 t2: tensor real) : data real
+    = fun ks ->
+        if (valid ks t1.dims && valid ks t2.dims) then
+            t1.data ks + t2.data ks
+        else
+            t1.background
+
+
+    let ghost function add_operator (t1 t2: tensor real) : tensor real
+        ensures  { result.dims = t1.dims }
+        ensures  { result.background = t1.background }
+        ensures  { forall ks: list int.
+                      valid ks t1 && valid ks t2 -> result.data ks = t1.data ks + t2.data ks }
+        = {
+            dims = t1.dims;
+            background = t1.background;
+            data = add_real_operation t1 t2
+        }
+
+    predicate tensor_add_extended_real_refinement (t1 t2: tensor extended_real) (result: tensor extended_real) =
+    forall ks: list int.
+      valid ks t1.dims /\ valid ks t2.dims ->
+        add_extended_real_refinement (t1.data ks) (t2.data ks) (to_real (result.data ks))
+    
+    let ghost function extended_real_add_operator (t1 t2: tensor extended_real) : tensor extended_real
+        ensures  { result.dims = (ext_tensor_to_tensor_real result).dims }
+        ensures  { to_real (result.background) = (ext_tensor_to_tensor_real result).background }    
+        ensures  { tensor_add_extended_real_refinement t1 t2 result }
+        = {
+            dims = t1.dims;
+            background = t1.background;
+            data = fun ks ->
+                if (valid ks t1.dims && valid ks t2.dims) then
+                    add_extended_real (t1.data ks) (t2.data ks) 
+                else
+                    t1.background
+    }
+
+
+end

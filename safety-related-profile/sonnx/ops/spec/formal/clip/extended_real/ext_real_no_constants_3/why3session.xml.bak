@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE why3session PUBLIC "-//Why3//proof session v5//EN"
+"https://www.why3.org/why3session.dtd">
+<why3session shape_version="6">
+<prover id="0" name="Z3" version="4.13.4" timelimit="1" steplimit="0" memlimit="1000"/>
+<prover id="1" name="Alt-Ergo" version="2.6.2" timelimit="1" steplimit="0" memlimit="1000"/>
+<file format="whyml" proved="true">
+<path name=".."/><path name="ext_real_no_constants_3.mlw"/>
+<theory name="ExtendedReal3" proved="true">
+ <goal name="ok_to_real" proved="true">
+ <proof prover="0"><result status="valid" time="0.003799" steps="2596"/></proof>
+ </goal>
+ <goal name="add_extended_real&#39;vc" expl="VC for add_extended_real" proved="true">
+ <proof prover="0"><result status="valid" time="0.026300" steps="12213"/></proof>
+ <proof prover="1" obsolete="true"><result status="valid" time="0.055494" steps="390"/></proof>
+ </goal>
+</theory>
+<theory name="TensorExtendedReal3" proved="true">
+ <goal name="ext_tensor_to_tensor_real&#39;vc" expl="VC for ext_tensor_to_tensor_real" proved="true">
+ <proof prover="0"><result status="valid" time="0.007810" steps="55089"/></proof>
+ </goal>
+ <goal name="add_real_operation&#39;vc" expl="VC for add_real_operation" proved="true">
+ <proof prover="0"><result status="valid" time="0.014277" steps="2164"/></proof>
+ </goal>
+ <goal name="add_operator&#39;vc" expl="VC for add_operator" proved="true">
+ <proof prover="0"><result status="valid" time="0.011422" steps="42646"/></proof>
+ </goal>
+ <goal name="extended_real_add_operator&#39;vc" expl="VC for extended_real_add_operator" proved="true">
+ <proof prover="0"><result status="valid" time="0.014980" steps="72422"/></proof>
+ </goal>
+</theory>
+</file>
+</why3session>
