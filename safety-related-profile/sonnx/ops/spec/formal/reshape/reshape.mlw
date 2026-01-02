@@ -1,0 +1,606 @@
+module OPReshape
+    use int.Int
+    use int.EuclideanDivision
+    use list.List
+    use list.Length
+    use list.Mem
+    use list.NumOcc
+    use tensor.Range
+    use tensor.Tensor
+    use list.Append
+    use map.Map
+    use map.Const
+
+    predicate non_negative (shape: list int) =
+        forall a: int. mem a shape -> a >= 0
+
+    let rec ghost function my_nth (n: int) (l:list int) : int
+    requires { n >= 0 /\ n < length(l) }
+    requires { length(l) > 0 }
+    variant { length(l) }
+    =
+        match l with
+        | Cons h t ->
+            if n = 0 then
+                h
+            else
+                my_nth (n-1) t
+        end
+
+    let rec lemma my_nth_non_negative (lst: list int) (i: int)
+    requires { non_negative lst }
+    requires { 0 <= i < length lst }
+    ensures { my_nth i lst >= 0 }
+    variant { lst }
+    =
+        match lst with
+        | Nil -> ()
+        | Cons _ t -> 
+            if i = 0 then ()
+            else my_nth_non_negative t (i - 1)
+        end
+
+    let rec lemma my_nth_positive (lst: list int) (i: int)
+    requires { positive lst }
+    requires { 0 <= i < length lst }
+    ensures { my_nth i lst > 0 }
+    variant { lst }
+    =
+        match lst with
+        | Nil -> ()
+        | Cons _ t -> 
+            if i = 0 then ()
+            else my_nth_positive t (i - 1)
+        end
+
+    let rec lemma my_nth_cons_tail (h: int) (t: list int) (n: int)
+    requires { 0 <= n < length t }
+    ensures { my_nth (n + 1) (Cons h t) = my_nth n t }
+    variant { n }
+    =
+        match t with
+        | Nil -> ()
+        | Cons h2 t2 ->
+            if n = 0 then ()
+            else my_nth_cons_tail h2 t2 (n - 1)
+        end
+
+    
+    let ghost function my_head (l: list int) : int
+    requires { length(l) > 0 }
+    = 
+    match l with
+    | Cons h _ -> h
+    end
+
+
+    let rec ghost function prod (l: list int) : int
+    =
+        match l with
+            | Nil -> 1
+            | Cons h t -> 
+                    h * prod t
+        end
+
+    let rec lemma prod_positive (lst: list int)
+    requires { positive lst }
+    ensures { prod lst > 0 }
+    variant { lst }
+    =
+        match lst with
+        | Nil -> ()
+        | Cons h t ->
+            prod_positive t
+        end
+
+    predicate positive_data (s_data:data int) (s_dims: list int) =
+       not (exists ks:list int. valid ks s_dims /\ s_data ks = 0)
+
+    predicate check_for_minus_one(s:data int) (s_dims: list int) =
+        exists ks:list int. valid ks s_dims /\ s ks = -1
+
+    predicate check_for_zero(s:data int) (s_dims: list int) =
+        exists ks:list int. valid ks s_dims /\ s ks = 0
+
+    
+    let rec ghost function map_prod (pos: int) (s_data: data int) (dims: list int) : int
+    requires { forall ks: list int. valid ks dims -> (s_data ks >= 0 \/ s_data ks = -1) }
+    ensures { check_for_zero s_data dims -> result >= 0 }
+    ensures { not check_for_zero s_data dims -> result > 0 }
+    variant { size dims - pos }
+    =
+        if pos < size dims && valid (Cons pos Nil) dims then
+            let dim_size = s_data (Cons pos Nil) in
+            if dim_size = -1 then
+                map_prod (pos + 1) s_data dims
+            else
+                dim_size * map_prod (pos + 1) s_data dims
+        else
+            1
+
+    let rec ghost function map_prod_zero (pos: int) (s_data: data int) (dims: list int) (x_shape: list int) : int
+    requires { positive x_shape }
+    requires { forall ks: list int. valid ks dims -> (s_data ks >= -1) }
+    requires { forall ks: list int. valid ks dims  /\ s_data ks = 0 -> 0 <= my_head ks < length x_shape }
+    ensures { result > 0 }
+    variant { size dims - pos }
+    =
+        if pos < size dims && valid (Cons pos Nil) dims then
+            let dim_size = s_data (Cons pos Nil) in
+            if dim_size = 0 then
+                my_nth (my_head (Cons pos Nil)) x_shape * map_prod_zero (pos + 1) s_data dims x_shape
+            else if dim_size = -1 then
+                map_prod_zero (pos + 1) s_data dims x_shape
+            else
+                dim_size * map_prod_zero (pos + 1) s_data dims x_shape
+        else
+            1
+
+
+    lemma positive_nth_head:
+        forall lst: list int, coords:list int.
+            positive lst /\ 0 <= my_head coords < length lst -> my_nth (my_head coords) lst > 0
+
+
+    axiom map_prod_zero_replace :
+    forall s: tensor int, x_shape: list int, result: data int.
+        (positive x_shape /\ (forall ks:list int. valid ks s.dims -> (s.data ks >= -1)) \/ 
+        (non_negative x_shape /\ (forall ks:list int. valid ks s.dims -> (s.data ks >= 0))))->
+        (forall ks:list int. valid ks s.dims /\ s.data ks = 0 -> 0 <= my_head ks /\ my_head ks < length x_shape) ->
+        (forall ks:list int. valid ks s.dims /\ ks <> Nil -> 
+            (result ks =
+                if s.data ks = 0 then 
+                    my_nth (my_head ks) x_shape
+                else 
+                    s.data ks)) ->
+        map_prod 0 result s.dims = map_prod_zero 0 s.data s.dims x_shape
+
+    
+    let ghost function clamp_zero (allowzero: int) (s: tensor int) (x_shape: list int)  : data int
+    (*X Shape can be 0 or positive*)
+    requires { non_negative x_shape }
+    (*S Domain Value*)
+    requires { forall ks: list int. valid ks s.dims -> (s.data ks >= -1) }
+    (*Mapping Values need to be valid in x_shape*)
+    requires { forall ks: list int. valid ks s.dims /\ allowzero = 0 /\ s.data ks = 0 -> 0 <= my_head ks < length x_shape }
+    (* If allowzero is 1 then we either have minus one or zeros *)
+    requires { allowzero = 1 -> (check_for_minus_one s.data s.dims -> not check_for_zero s.data s.dims) }
+    (* If allowzero is 0 then we either have minus one or zeros *)
+    requires { allowzero = 0 -> (check_for_minus_one s.data s.dims -> positive x_shape) }
+    (* If allowzero is 0 then all values in s are either positive or -1 *)
+    requires { allowzero = 0 /\ (positive x_shape)  -> (forall js: list int. valid js s.dims -> s.data js >= -1) }
+    (* If allowzero is 0 if we have zeros on x_shape we have a zero on s that maps to 0 on x_shape, and viceverse *)
+    requires { allowzero = 0 -> ((not positive x_shape) <-> (exists ks: list int. valid ks s.dims /\ s.data ks = 0 /\ ks <> Nil /\ my_nth (my_head ks) x_shape = 0)) }
+    (* If allowzero is 1 if we have zeros on x_shape we have zeros on s, and vice-versa *)
+    requires { allowzero = 1 -> (check_for_zero s.data s.dims <-> (not positive x_shape)) }
+    (* Allowzero is 1 or 0 *)
+    requires { allowzero = 0 \/ allowzero = 1 }
+    (* All -1 values are unique *)
+    requires { forall i,j:list int. valid i s.dims /\ valid j s.dims /\ s.data i = -1 /\ s.data j = -1 -> i = j }
+    (*Product Conditions*)
+    requires { (check_for_minus_one s.data s.dims /\ allowzero = 1) ->  mod (prod x_shape) (map_prod 0 s.data s.dims) = 0 }
+    requires { (check_for_minus_one s.data s.dims /\ allowzero = 0 ) ->  mod (prod x_shape) (map_prod_zero 0 s.data s.dims x_shape) = 0 }
+    requires { ((not check_for_minus_one s.data s.dims) /\ allowzero = 1) -> prod x_shape = map_prod 0 s.data s.dims }
+    requires { ((not check_for_minus_one s.data s.dims) /\ allowzero = 0) -> prod x_shape = map_prod_zero 0 s.data s.dims x_shape }
+
+    (*If allowzero is 0 and forall elements on result with value 0 then for the corresponding element on x_shape is 0*)
+    ensures { allowzero = 0 -> (forall ks: list int. valid ks s.dims /\ ks <> Nil /\ result ks  = 0 -> my_nth (my_head ks) x_shape = 0) }
+    (* If allowzero is 0 then for all elements on s with value 0 and valid ks, the corresponding element on result is the same as the element on x_shape *)
+    ensures { allowzero = 0 -> (forall ks: list int. valid ks s.dims /\ s.data ks = 0 /\ ks <> Nil-> result ks = my_nth (my_head ks) x_shape) }
+    (* If allowzero is 0 then if result has minus one values, it does not have zero values *)
+    ensures { allowzero = 0 -> (check_for_minus_one result s.dims -> not check_for_zero result s.dims) }
+    (* If minus 1 exist on s then no zeros on result *)
+    ensures { check_for_minus_one s.data s.dims -> not check_for_zero result s.dims }
+    (*If minus 1 exists x_shape is positive*)
+    ensures { check_for_minus_one s.data s.dims -> positive x_shape }
+    (*If minus 1 exists all values on result are -1 or positive*)
+    ensures { check_for_minus_one s.data s.dims -> (forall ks: list int. valid ks s.dims -> result ks > 0 \/ result ks = -1) }
+    (*Product Conditions*)
+    ensures { (check_for_minus_one s.data s.dims /\ allowzero = 1) -> s.data = result }
+    ensures { (check_for_minus_one s.data s.dims /\ allowzero = 0) -> (map_prod 0 result s.dims) = map_prod_zero 0 s.data s.dims x_shape }
+    ensures { check_for_minus_one s.data s.dims -> mod (prod x_shape) (map_prod 0 result s.dims) = 0 }
+    ensures { not check_for_minus_one s.data s.dims -> map_prod 0 result s.dims = prod x_shape }
+
+    =
+        fun ks ->
+            match ks with
+                | Nil -> s.data ks
+                | Cons _ _ ->
+                    if valid ks s.dims && allowzero = 0 && s.data ks = 0 then
+                        my_nth (my_head ks) x_shape
+                    else
+                        s.data ks
+            end
+
+
+    lemma div_mul_equiv:
+        forall i,j,k:int.
+            j > 0 ->
+            div i j < k <-> i < k * j
+
+    lemma mod_div_equiv:
+        forall a, b: int.
+            a > 0 ->
+            b > 0 ->
+            mod a b = 0 ->
+            mod a (div a b) = 0 /\ a = b * (div a b)
+
+    
+    axiom map_prod_replace_minus_one:
+        forall s: tensor int, x_shape: list int, result_data: data int.
+            positive x_shape ->
+            (forall ks: list int. valid ks s.dims -> (s.data ks > 0 \/ s.data ks = -1)) ->
+            (forall i,j: list int. valid i s.dims /\ valid j s.dims /\ s.data i = -1 /\ s.data j = -1 -> i = j) ->
+            mod (prod x_shape) (map_prod 0 s.data s.dims) = 0 ->
+            (forall ks: list int. valid ks s.dims /\ s.data ks <> -1 -> result_data ks = s.data ks) ->
+            (forall ks: list int. valid ks s.dims /\ s.data ks = -1 -> result_data ks = div (prod x_shape) (map_prod 0 s.data s.dims)) ->
+            map_prod 0 s.data s.dims * div (prod x_shape) (map_prod 0 s.data s.dims) = map_prod 0 result_data s.dims
+    
+    (* This tensor s is clamp_zero*)
+    let ghost function clamp_y_shape (s: tensor int) (x_shape: list int) : data int
+    requires { positive x_shape }
+    requires { forall ks: list int. valid ks s.dims -> (s.data ks > 0 \/ s.data ks = -1) }
+    (* All -1 values are unique *)
+    requires { forall i,j:list int. valid i s.dims /\ valid j s.dims /\ s.data i = -1 /\ s.data j = -1 -> i = j }
+    requires { mod (prod x_shape) (map_prod 0 s.data s.dims) = 0 }
+
+    ensures { forall ks: list int. valid ks s.dims /\ s.data ks <> -1 -> result ks = s.data ks }
+    ensures { forall ks: list int. valid ks s.dims /\ s.data ks = -1 -> result ks = div (prod x_shape) (map_prod 0 s.data s.dims) }
+    ensures { forall ks: list int. valid ks s.dims -> result ks > 0 }
+    ensures { forall ks: list int. valid ks s.dims /\ s.data ks = -1 -> mod (prod x_shape) ( div (prod x_shape) (map_prod 0 s.data s.dims) ) = 0 }
+    ensures { forall ks: list int. valid ks s.dims /\ s.data ks = -1 -> mod (prod x_shape) ( result ks ) = 0 }
+    ensures { map_prod 0 s.data s.dims * (div (prod x_shape) (map_prod 0 s.data s.dims)) = prod x_shape }
+    ensures { map_prod 0 s.data s.dims * (div (prod x_shape) (map_prod 0 s.data s.dims)) = map_prod 0 result s.dims }
+    ensures { map_prod 0 result s.dims = prod x_shape }
+    ensures { forall ks: list int. not valid ks s.dims -> result ks = s.background }
+    =
+        fun ks -> 
+            if valid ks s.dims && s.data ks = -1 then
+                let prod_x = prod x_shape in
+                let s_prod = map_prod 0 s.data s.dims in
+                div prod_x s_prod
+            else if valid ks s.dims then
+                s.data ks
+            else
+                s.background
+    
+    
+    axiom build_list_prod:
+        forall result_data:list int, shape:tensor int, ks:int.
+            not check_for_minus_one shape.data shape.dims ->
+            length result_data = size shape.dims - ks ->
+            0 <= ks < size shape.dims ->
+            (forall j. 0 <= j < length result_data ->
+                my_nth j result_data = shape.data (Cons (ks + j) Nil)) ->
+            prod result_data = map_prod ks shape.data shape.dims
+    
+
+    (*
+    let rec lemma build_list_prod (shape: tensor int) (ks: int) (result_data: list int)
+    requires { length shape.dims = 1 }
+    requires { not check_for_minus_one shape.data shape.dims }
+    requires { forall zs: list int. valid zs shape.dims -> (shape.data zs > 0) }
+    requires { 0 <= ks < size (shape.dims) }
+    requires { valid (Cons ks Nil) shape.dims -> 0 <= ks < size (shape.dims) }
+    requires { length result_data = size (shape.dims) - ks }
+    requires { forall j:int. 0 <= j < length result_data -> my_nth j result_data = shape.data (Cons (ks + j) Nil) }
+    variant { length result_data }
+    ensures { prod result_data = map_prod ks shape.data shape.dims }
+    =
+        if ks < size (shape.dims) - 1 then
+            match result_data with
+                | Cons h t ->
+                    h = shape.data (Cons ks Nil) && 
+                    h * prod t = prod result_data && 
+                    map_prod ks shape.data shape.dims = shape.data (Cons ks Nil) * map_prod (ks + 1) shape.data shape.dims && 
+                    build_list_prod shape (ks + 1) t
+                | _ -> absurd
+            end
+        else
+            match result_data with
+                | Cons h Nil ->
+                    h = shape.data (Cons ks Nil) &&
+                    prod result_data = h &&
+                    map_prod ks shape.data shape.dims = shape.data (Cons ks Nil)
+                | _ -> absurd
+            end
+    *)
+
+    (*
+    lemma build_list_prod:
+        forall result_data:list int, shape:tensor int, ks:int.
+            not check_for_minus_one shape.data shape.dims ->
+            length result_data = size shape.dims - ks ->
+            0 <= ks < size shape.dims ->
+            (forall j. 0 <= j < length result_data ->
+                my_nth j result_data = shape.data (Cons (ks + j) Nil)) ->
+            prod result_data = map_prod ks shape.data shape.dims
+    *)
+
+    let rec ghost function build_list (shape: tensor int) (ks: int) (x_shape: list int) : list int
+    (* 1D Shape *)
+    requires { length shape.dims = 1 }
+    (*Non -1 exists on shape tensor*)
+    requires { not check_for_minus_one shape.data shape.dims }
+    (*X Shape can be 0 or positive*)
+    requires { non_negative x_shape }
+    (* Valid values for ks, is 0 <= ks < size (shape.dims) *)
+    requires { 0 <= ks < size (shape.dims) }
+    variant { size (shape.dims) - ks }
+    (* size shape data is the same of the size of result *)
+    ensures { length result = size (shape.dims) - ks }
+    ensures { forall j:int. 0 <= j < length result -> my_nth j result = shape.data (Cons (ks + j) Nil) }
+    ensures { prod x_shape = map_prod 0 shape.data shape.dims -> prod result = map_prod ks shape.data shape.dims }
+    =
+    if 0 <= ks < size (shape.dims) - 1 then
+        Cons (shape.data (Cons ks Nil)) (build_list shape (ks + 1) x_shape)
+    else
+        Cons (shape.data (Cons ks Nil)) Nil
+
+            
+    let ghost function y_shape (s: tensor int) (x_shape: list int) (allowzero: int) : list int
+    (*1D Shape*)
+    requires { length s.dims = 1 }
+    (*X Shape can be 0 or positive*)
+    requires { non_negative x_shape }
+    (*S Domain Value*)
+    requires { forall ks: list int. valid ks s.dims -> (s.data ks >= -1) }
+    (*Mapping Values need to be valid in x_shape*)
+    requires { forall ks: list int. valid ks s.dims /\ allowzero = 0 /\ s.data ks = 0 -> 0 <= my_head ks < length x_shape }
+    (* If allowzero is 1 then we either have minus one or zeros *)
+    requires { allowzero = 1 -> (check_for_minus_one s.data s.dims -> not check_for_zero s.data s.dims) }
+    (* If allowzero is 0 then we either have minus one or zeros *)
+    requires { allowzero = 0 -> (check_for_minus_one s.data s.dims -> positive x_shape) }
+    (* If allowzero is 0 then all values in s are either positive or -1 *)
+    requires { allowzero = 0 /\ (positive x_shape)  -> (forall js: list int. valid js s.dims -> s.data js >= -1) }
+    (* If allowzero is 0 if we have zeros on x_shape we have a zero on s that maps to 0 on x_shape, and viceverse *)
+    requires { allowzero = 0 -> ((not positive x_shape) <-> (exists ks: list int. valid ks s.dims /\ s.data ks = 0 /\ ks <> Nil /\ my_nth (my_head ks) x_shape = 0)) }
+    (* If allowzero is 1 if we have zeros on x_shape we have zeros on s, and vice-versa *)
+    requires { allowzero = 1 -> (check_for_zero s.data s.dims <-> (not positive x_shape)) }
+    (* Allowzero is 1 or 0 *)
+    requires { allowzero = 0 \/ allowzero = 1 }
+    (* All -1 values are unique *)
+    requires { forall i,j:list int. valid i s.dims /\ valid j s.dims /\ s.data i = -1 /\ s.data j = -1 -> i = j }
+    (*Product Conditions*)
+    requires { (check_for_minus_one s.data s.dims /\ allowzero = 1) ->  mod (prod x_shape) (map_prod 0 s.data s.dims) = 0 }
+    requires { (check_for_minus_one s.data s.dims /\ allowzero = 0 ) ->  mod (prod x_shape) (map_prod_zero 0 s.data s.dims x_shape) = 0 }
+    requires { ((not check_for_minus_one s.data s.dims) /\ allowzero = 1) -> prod x_shape = map_prod 0 s.data s.dims }
+    requires { ((not check_for_minus_one s.data s.dims) /\ allowzero = 0) -> prod x_shape = map_prod_zero 0 s.data s.dims x_shape }
+
+    ensures { length result = size s.dims }
+    ensures { prod result = prod x_shape }
+    =
+        let zero_clamp = clamp_zero allowzero s x_shape in
+        let tensor_s = { dims = s.dims; data = zero_clamp; background = s.background } in
+        assert { (not check_for_minus_one tensor_s.data tensor_s.dims) -> map_prod 0 tensor_s.data tensor_s.dims = prod x_shape };
+        assert { check_for_minus_one tensor_s.data s.dims -> positive x_shape };
+        assert { check_for_minus_one tensor_s.data s.dims -> map_prod 0 tensor_s.data tensor_s.dims = map_prod 0 zero_clamp s.dims };
+        assert { check_for_minus_one tensor_s.data s.dims <-> check_for_minus_one s.data s.dims };
+        if check_for_minus_one tensor_s.data s.dims then
+            let final_clamp = clamp_y_shape tensor_s x_shape in
+            let tensor_clamp = { dims = s.dims; data = final_clamp; background = s.background } in
+            assert { map_prod 0 tensor_clamp.data tensor_clamp.dims = prod x_shape };
+            build_list tensor_clamp 0 x_shape
+        else 
+            build_list tensor_s 0 x_shape
+
+    
+    let rec lemma valid_lists_length (l1 l2: list int)
+    requires { valid l1 l2 }
+    ensures { length l1 = length l2 }
+    variant { l1 }
+    =
+        match l1, l2 with
+        | Nil, Nil -> ()
+        | Cons _ t1, Cons _ t2 -> valid_lists_length t1 t2
+        end
+    
+    let rec lemma valid_lists_values (l1 l2: list int)
+    requires { valid l1 l2 }
+    variant { l1 }
+    =
+        match l1, l2 with
+        | Nil, Nil -> true
+        | Cons h1 t1, Cons h2 t2 -> h1 < h2 && valid_lists_values t1 t2
+        end
+    
+    lemma valid_lists_step:
+        forall l1,l2: list int, i:int.
+            valid l1 l2 ->
+            i > 0 ->
+            match l1, l2 with
+                | Cons h1 _, Cons h2 _ -> (h1 + 1) * i <= h2 * i
+                | _, _ -> true
+            end
+
+    let rec ghost function flatIndexBounded (index: int) (shape: list int) (coords: list int) : int
+    requires { positive shape }
+    requires { valid coords shape }
+    requires { 0 <= index <= length shape }
+    requires { length shape = length coords }
+    variant { index }
+    ensures { result >= 0 }
+    ensures { result < prod shape }
+    =
+        if index = 0 then
+            0
+        else
+            match shape, coords with
+                | Cons s ss, Cons c cc -> 
+                    c * prod ss + flatIndexBounded (index - 1) ss cc
+                | _, _ -> 0
+            end
+
+    let rec ghost function drop (lst: list int) (n: int): list int
+    requires { 0 <= n <= length (lst) }
+    ensures { length (result) = length (lst) - n }
+    ensures { n = 0 -> result = lst}
+    ensures { forall i:int. 0 <= i < length (result) -> my_nth i result = my_nth (i + n) lst }
+    =
+        match lst with
+        | Nil -> Nil
+        | Cons _ t ->
+            if n = 0 then
+                lst
+            else
+                drop t (n - 1)
+        end
+
+    
+    let rec lemma drop_positive (lst: list int) (n: int)
+    requires { positive lst }
+    requires { 0 <= n <= length (lst) }
+    ensures { positive (drop lst n) }
+    variant { lst }
+    =
+        match lst with
+        | Nil -> ()
+        | Cons h t ->
+            if n = 0 then
+                ()
+            else
+                drop_positive t (n - 1)
+        end
+
+
+
+    let rec ghost function partial_prod (lst: list int) (n: int) : int
+    requires { 0 <= n <= length lst }
+    variant { n }
+    ensures { result = prod (drop lst n) }
+    =
+        if n = 0 then
+            prod lst
+        else
+            match lst with
+                | Cons h t -> partial_prod t (n - 1)
+            end
+    (*
+    lemma prod_nth_relation_length_one:
+        forall lst:list int, n:int.
+            length(lst) = 1 ->
+            n = 0 ->
+            (* prod lst = my_nth n lst *)
+            match lst with
+                | Cons h t -> prod lst = h = my_nth 0 lst
+                | Nil -> false
+            end 
+
+    lemma prod_nth_drop_relation_length_one:
+        forall lst:list int, n:int.
+            length(lst) = 1 ->
+            0 <= n < length(lst) ->
+            (*prod (drop lst n) = my_nth n lst * prod (drop lst (n + 1))*)
+            match lst with
+                | Cons h t -> prod (drop lst n) = h * prod (drop lst (n + 1))
+                | Nil -> false
+            end
+
+    lemma prod_nth_drop_relation_zero:
+        forall lst:list int.
+            0 < length(lst) ->
+            (* prod (drop lst 0) = my_nth 0 lst * prod (drop lst (0 + 1))*)
+            (* prod lst = my_nth 0 lst * prod (drop lst 1) *)
+            match lst with
+                | Cons h t -> prod lst = my_nth 0 lst * prod (drop lst 1)
+                | Nil -> false
+            end
+
+    *)
+    let rec lemma prod_nth_drop_relation (lst: list int) (n:int)
+    requires { 0 <= n < length lst }
+    ensures { prod (drop lst n) = my_nth n lst * prod (drop lst (n + 1)) }
+    variant { lst }
+    =
+        match lst with
+            | Nil -> ()
+            | Cons h t ->
+                if n = 0 then
+                    ()
+                else
+                    prod_nth_drop_relation t (n - 1)
+        end
+
+    (*
+    lemma prod_nth_drop_relation:
+        forall lst: list int, n:int.
+            0 <= n < length lst ->
+            prod (drop lst n) = my_nth n lst * prod (drop lst (n + 1))
+    *)
+
+    let rec ghost function x_coords (y_shape  y_coords  x_shape: list int) (index: int) (flat_index: int) : list int
+    requires { positive x_shape }
+    requires { positive y_shape }
+    requires { valid y_coords y_shape }
+    requires { length y_shape = length y_coords }
+    requires { 0 <= index <= length x_shape }
+    requires { partial_prod x_shape 0 = partial_prod y_shape 0 }
+    requires { 0 <= flat_index < partial_prod x_shape index }
+    variant { length x_shape - index }
+    ensures { length result = length x_shape - index }
+    ensures { index < length x_shape -> 
+              let flat_index_ = flat_index - my_nth 0 result * partial_prod x_shape (index + 1) in
+              0 <= flat_index_ < partial_prod x_shape (index + 1)
+          }
+    ensures { forall i:int. 0 <= i < length result -> 0 <= my_nth i result < my_nth (i + index) x_shape }
+    =
+    if index = length x_shape then
+        Nil
+    else
+        let prod_dropped = partial_prod x_shape (index + 1) in
+        let x_coord = div flat_index prod_dropped in
+        let flat_index_ = flat_index - x_coord * prod_dropped in
+        Cons x_coord (x_coords  y_shape  y_coords  x_shape  (index + 1) flat_index_ )
+
+    
+    let ghost function dreshape (s: tensor int) (x: tensor int) (y_shape_list: list int) : data int
+    (*1D Shape*)
+    requires { length s.dims = 1 }
+    (*X Shape can be 0 or positive*)
+    requires { non_negative x.dims }
+    (* Prod y_shape is equal to prod x_shape*)
+    requires { prod y_shape_list = prod x.dims }
+    =
+        fun ks ->
+            if valid ks y_shape_list then
+                let flat_index = flatIndexBounded (length y_shape_list) y_shape_list ks in
+                let x_coords = x_coords y_shape_list ks x.dims 0 flat_index in
+                x.data x_coords
+            else
+                x.background
+    
+    let ghost function reshape (x:tensor int) (s:tensor int) (allowzero: int) : tensor int
+    (*1D Shape*)
+    requires { length s.dims = 1 }
+    (*X Shape can be 0 or positive*)
+    requires { non_negative x.dims }
+    (*S Domain Value*)
+    requires { forall ks: list int. valid ks s.dims -> (s.data ks >= -1) }
+    (*Mapping Values need to be valid in x_shape*)
+    requires { forall ks: list int. valid ks s.dims /\ allowzero = 0 /\ s.data ks = 0 -> 0 <= my_head ks < length x.dims }
+    (* If allowzero is 1 then we either have minus one or zeros *)
+    requires { allowzero = 1 -> (check_for_minus_one s.data s.dims -> not check_for_zero s.data s.dims) }
+    (* If allowzero is 0 then we either have minus one or zeros *)
+    requires { allowzero = 0 -> (check_for_minus_one s.data s.dims -> positive x.dims) }
+    (* If allowzero is 0 then all values in s are either positive or -1 *)
+    requires { allowzero = 0 /\ (positive x.dims)  -> (forall js: list int. valid js s.dims -> s.data js >= -1) }
+    (* If allowzero is 0 if we have zeros on x_shape we have a zero on s that maps to 0 on x_shape, and viceverse *)
+    requires { allowzero = 0 -> ((not positive x.dims) <-> (exists ks: list int. valid ks s.dims /\ s.data ks = 0 /\ ks <> Nil /\ my_nth (my_head ks) x.dims = 0)) }
+    (* If allowzero is 1 if we have zeros on x_shape we have zeros on s, and vice-versa *)
+    requires { allowzero = 1 -> (check_for_zero s.data s.dims <-> (not positive x.dims)) }
+    (* Allowzero is 1 or 0 *)
+    requires { allowzero = 0 \/ allowzero = 1 }
+    (* All -1 values are unique *)
+    requires { forall i,j:list int. valid i s.dims /\ valid j s.dims /\ s.data i = -1 /\ s.data j = -1 -> i = j }
+    (*Product Conditions*)
+    requires { (check_for_minus_one s.data s.dims /\ allowzero = 1) ->  mod (prod x.dims) (map_prod 0 s.data s.dims) = 0 }
+    requires { (check_for_minus_one s.data s.dims /\ allowzero = 0 ) ->  mod (prod x.dims) (map_prod_zero 0 s.data s.dims x.dims) = 0 }
+
+    requires { ((not check_for_minus_one s.data s.dims) /\ allowzero = 1) -> prod x.dims = map_prod 0 s.data s.dims }
+    requires { ((not check_for_minus_one s.data s.dims) /\ allowzero = 0) -> prod x.dims = map_prod_zero 0 s.data s.dims x.dims }
+    =
+        let y_dims = y_shape s x.dims allowzero in
+        let dreshaped_data = dreshape s x y_dims in
+        { dims = y_dims; data = dreshaped_data; background = x.background }
+   
+end
