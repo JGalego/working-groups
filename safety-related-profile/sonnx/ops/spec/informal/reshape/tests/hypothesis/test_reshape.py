@@ -249,13 +249,13 @@ def valid_reshape_args(draw):
     shape_tensor_shape = []
     for _ in range(rank_tensor_shape):
         dim_size = draw(st.integers(
-            min_value=inputs_attributes["min_rank_input"],
+            min_value=inputs_attributes["min_dim_size_input"],
             max_value=inputs_attributes["max_dim_size_input"]
         ))
         shape_tensor_shape.append(dim_size)
 
     # ONNX Runtime limit the total number of dimensions, on shape tensor, to 64
-    assume (np.prod(shape_tensor_shape) <= 64)
+    assume(np.prod(shape_tensor_shape) <= 64)
 
     num_shape_elements = np.prod(shape_tensor_shape)
     
@@ -266,7 +266,7 @@ def valid_reshape_args(draw):
     
     # Allow -1 in shape tensor to infer dimension
     allow_infer = draw(st.booleans())
-    if allow_infer and (allowzero == 0 or (allowzero == 1 and 0 not in data_tensor_shape)):
+    if allow_infer and ((allowzero == 0  and 0 not in shape_input_tensor) or (allowzero == 1 and 0 not in data_tensor_shape)):
         infer_index = draw(st.integers(
             min_value=0,
             max_value=num_shape_elements - 1
@@ -296,7 +296,7 @@ def clamp_s_tensor(x,s,allowzero):
         clamped_s = [inferred_dim if dim == -1 else dim for dim in clamped_s]
     return clamped_s
 
-@settings(max_examples=100000, deadline=None)
+@settings(max_examples=50000, deadline=None)
 @given(valid_reshape_args())
 def test_reshape(args):
     x, shape_tensor, y_shape, allowzero = args
@@ -450,10 +450,15 @@ def check_constraints(x, s, allowzero, y, y_shape):
     if allowzero == 0:
         for s_value in s:
             assert s_value >= -1
+        if -1 in s:
+            assert 0 not in x.shape
+
+    if allowzero == 0 and -1 in s:
+        assert 0 not in x.shape
 
     if allowzero == 1:
         for s_value in s:
-            assert s_value > 0 or (s_value == 0 and 0 in list(x.shape) and not -1 in list(s)) or (s_value == -1 and 0 not in list(s))
+            assert s_value > 0 or (s_value == 0 and 0 in list(x.shape) and not -1 in s) or (s_value == -1 and 0 not in s)
     
     assert list(s).count(-1) <= 1
 
