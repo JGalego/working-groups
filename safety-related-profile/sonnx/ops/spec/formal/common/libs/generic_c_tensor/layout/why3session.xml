@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE why3session PUBLIC "-//Why3//proof session v5//EN"
+"https://www.why3.org/why3session.dtd">
+<why3session shape_version="6">
+<file format="whyml">
+<path name=".."/><path name="layout.mlw"/>
+<theory name="CFlat">
+ <goal name="offset_size&#39;vc" expl="VC for offset_size">
+ <transf name="split_vc" >
+  <goal name="offset_size&#39;vc.0" expl="variant decrease">
+  <transf name="split_vc" >
+   <goal name="offset_size&#39;vc.0.0" expl="variant decrease">
+   </goal>
+   <goal name="offset_size&#39;vc.0.1" expl="variant decrease">
+   </goal>
+  </transf>
+  </goal>
+  <goal name="offset_size&#39;vc.1" expl="precondition">
+  </goal>
+  <goal name="offset_size&#39;vc.2" expl="assertion">
+  </goal>
+  <goal name="offset_size&#39;vc.3" expl="assertion">
+  <transf name="split_vc" >
+   <goal name="offset_size&#39;vc.3.0" expl="assertion">
+   </goal>
+   <goal name="offset_size&#39;vc.3.1" expl="assertion">
+   </goal>
+  </transf>
+  </goal>
+  <goal name="offset_size&#39;vc.4" expl="postcondition">
+  <transf name="split_vc" >
+   <goal name="offset_size&#39;vc.4.0" expl="postcondition">
+   <transf name="split_vc" >
+    <goal name="offset_size&#39;vc.4.0.0" expl="postcondition">
+    <transf name="split_vc" >
+     <goal name="offset_size&#39;vc.4.0.0.0" expl="postcondition">
+     </goal>
+    </transf>
+    </goal>
+    <goal name="offset_size&#39;vc.4.0.1" expl="postcondition">
+    </goal>
+    <goal name="offset_size&#39;vc.4.0.2" expl="postcondition">
+    </goal>
+   </transf>
+   </goal>
+   <goal name="offset_size&#39;vc.4.1" expl="postcondition">
+   <transf name="split_vc" >
+    <goal name="offset_size&#39;vc.4.1.0" expl="postcondition">
+    <transf name="split_vc" >
+     <goal name="offset_size&#39;vc.4.1.0.0" expl="postcondition">
+     </goal>
+    </transf>
+    </goal>
+    <goal name="offset_size&#39;vc.4.1.1" expl="postcondition">
+    </goal>
+    <goal name="offset_size&#39;vc.4.1.2" expl="postcondition">
+    </goal>
+   </transf>
+   </goal>
+  </transf>
+  </goal>
+ </transf>
+ </goal>
+ <goal name="index_range&#39;vc" expl="VC for index_range">
+ <transf name="split_vc" >
+  <goal name="index_range&#39;vc.0" expl="precondition">
+  </goal>
+  <goal name="index_range&#39;vc.1" expl="variant decrease">
+  <transf name="split_vc" >
+   <goal name="index_range&#39;vc.1.0" expl="variant decrease">
+   </goal>
+   <goal name="index_range&#39;vc.1.1" expl="variant decrease">
+   </goal>
+  </transf>
+  </goal>
+  <goal name="index_range&#39;vc.2" expl="precondition">
+  </goal>
+  <goal name="index_range&#39;vc.3" expl="precondition">
+  <transf name="split_vc" >
+   <goal name="index_range&#39;vc.3.0" expl="precondition">
+   </goal>
+   <goal name="index_range&#39;vc.3.1" expl="precondition">
+   </goal>
+  </transf>
+  </goal>
+  <goal name="index_range&#39;vc.4" expl="postcondition">
+  <transf name="split_vc" >
+   <goal name="index_range&#39;vc.4.0" expl="postcondition">
+   </goal>
+   <goal name="index_range&#39;vc.4.1" expl="postcondition">
+   </goal>
+  </transf>
+  </goal>
+ </transf>
+ </goal>
+ <goal name="index_of_offset&#39;vc" expl="VC for index_of_offset">
+ <transf name="split_vc" >
+  <goal name="index_of_offset&#39;vc.0" expl="variant decrease">
+  <transf name="split_vc" >
+   <goal name="index_of_offset&#39;vc.0.0" expl="variant decrease">
+   </goal>
+   <goal name="index_of_offset&#39;vc.0.1" expl="variant decrease">
+   </goal>
+  </transf>
+  </goal>
+  <goal name="index_of_offset&#39;vc.1" expl="precondition">
+  </goal>
+  <goal name="index_of_offset&#39;vc.2" expl="precondition">
+  <transf name="split_vc" >
+   <goal name="index_of_offset&#39;vc.2.0" expl="precondition">
+   </goal>
+   <goal name="index_of_offset&#39;vc.2.1" expl="precondition">
+   </goal>
+   <goal name="index_of_offset&#39;vc.2.2" expl="precondition">
+   </goal>
+  </transf>
+  </goal>
+  <goal name="index_of_offset&#39;vc.3" expl="precondition">
+  <transf name="split_vc" >
+   <goal name="index_of_offset&#39;vc.3.0" expl="precondition">
+   </goal>
+  </transf>
+  </goal>
+  <goal name="index_of_offset&#39;vc.4" expl="postcondition">
+  <transf name="split_vc" >
+   <goal name="index_of_offset&#39;vc.4.0" expl="postcondition">
+   </goal>
+   <goal name="index_of_offset&#39;vc.4.1" expl="postcondition">
+   </goal>
+   <goal name="index_of_offset&#39;vc.4.2" expl="postcondition">
+   </goal>
+  </transf>
+  </goal>
+ </transf>
+ </goal>
+ <goal name="offset_of_index&#39;vc" expl="VC for offset_of_index">
+ <transf name="split_vc" >
+  <goal name="offset_of_index&#39;vc.0" expl="precondition">
+  </goal>
+  <goal name="offset_of_index&#39;vc.1" expl="variant decrease">
+  <transf name="split_vc" >
+   <goal name="offset_of_index&#39;vc.1.0" expl="variant decrease">
+   </goal>
+   <goal name="offset_of_index&#39;vc.1.1" expl="variant decrease">
+   </goal>
+  </transf>
+  </goal>
+  <goal name="offset_of_index&#39;vc.2" expl="precondition">
+  </goal>
+  <goal name="offset_of_index&#39;vc.3" expl="precondition">
+  <transf name="split_vc" >
+   <goal name="offset_of_index&#39;vc.3.0" expl="precondition">
+   </goal>
+   <goal name="offset_of_index&#39;vc.3.1" expl="precondition">
+   </goal>
+  </transf>
+  </goal>
+  <goal name="offset_of_index&#39;vc.4" expl="postcondition">
+  <transf name="split_vc" >
+   <goal name="offset_of_index&#39;vc.4.0" expl="postcondition">
+   </goal>
+   <goal name="offset_of_index&#39;vc.4.1" expl="postcondition">
+   </goal>
+  </transf>
+  </goal>
+ </transf>
+ </goal>
+ <goal name="offset_push&#39;vc" expl="VC for offset_push">
+ <transf name="split_vc" >
+  <goal name="offset_push&#39;vc.0" expl="variant decrease">
+  <transf name="split_vc" >
+   <goal name="offset_push&#39;vc.0.0" expl="variant decrease">
+   </goal>
+   <goal name="offset_push&#39;vc.0.1" expl="variant decrease">
+   </goal>
+  </transf>
+  </goal>
+  <goal name="offset_push&#39;vc.1" expl="precondition">
+  </goal>
+  <goal name="offset_push&#39;vc.2" expl="postcondition">
+  <transf name="split_vc" >
+   <goal name="offset_push&#39;vc.2.0" expl="postcondition">
+   </goal>
+   <goal name="offset_push&#39;vc.2.1" expl="postcondition">
+   </goal>
+   <goal name="offset_push&#39;vc.2.2" expl="postcondition">
+   </goal>
+  </transf>
+  </goal>
+ </transf>
+ </goal>
+</theory>
+</file>
+</why3session>

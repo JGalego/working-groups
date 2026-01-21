@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE why3session PUBLIC "-//Why3//proof session v5//EN"
+"https://www.why3.org/why3session.dtd">
+<why3session shape_version="6">
+<prover id="0" name="Alt-Ergo" version="2.6.2" timelimit="1" steplimit="0" memlimit="1000"/>
+<prover id="1" name="CVC5" version="1.2.1" timelimit="1" steplimit="0" memlimit="1000"/>
+<prover id="2" name="Z3" version="4.13.4" timelimit="1" steplimit="0" memlimit="1000"/>
+<file format="whyml" proved="true">
+<path name=".."/><path name="layout.mlw"/>
+<theory name="CFlat" proved="true">
+ <goal name="offset_size&#39;vc" expl="VC for offset_size" proved="true">
+ <proof prover="0"><result status="timeout" time="1.000000" steps="42722"/></proof>
+ <proof prover="1"><result status="timeout" time="1.000000"/></proof>
+ <proof prover="2"><result status="timeout" time="0.765512" steps="1590769"/></proof>
+ <transf name="split_vc" proved="true" >
+  <goal name="offset_size&#39;vc.0" expl="variant decrease" proved="true">
+  <proof prover="2"><result status="valid" time="0.004063" steps="6062"/></proof>
+  </goal>
+  <goal name="offset_size&#39;vc.1" expl="precondition" proved="true">
+  <proof prover="2"><result status="valid" time="0.019227" steps="23872"/></proof>
+  </goal>
+  <goal name="offset_size&#39;vc.2" expl="assertion" proved="true">
+  <proof prover="2"><result status="valid" time="0.007421" steps="25425"/></proof>
+  </goal>
+  <goal name="offset_size&#39;vc.3" expl="assertion" proved="true">
+  <proof prover="2"><result status="valid" time="0.012493" steps="25098"/></proof>
+  </goal>
+  <goal name="offset_size&#39;vc.4" expl="postcondition" proved="true">
+  <proof prover="1"><result status="valid" time="0.121218" steps="13493"/></proof>
+  </goal>
+ </transf>
+ </goal>
+ <goal name="index_range&#39;vc" expl="VC for index_range" proved="true">
+ <proof prover="0"><result status="valid" time="0.131468" steps="6579"/></proof>
+ </goal>
+ <goal name="index_of_offset&#39;vc" expl="VC for index_of_offset" proved="true">
+ <proof prover="1"><result status="valid" time="0.056148" steps="8876"/></proof>
+ </goal>
+ <goal name="offset_of_index&#39;vc" expl="VC for offset_of_index" proved="true">
+ <proof prover="0"><result status="valid" time="0.270060" steps="18495"/></proof>
+ </goal>
+ <goal name="offset_push&#39;vc" expl="VC for offset_push" proved="true">
+ <proof prover="0"><result status="timeout" time="1.000000" steps="60578"/></proof>
+ <proof prover="1"><result status="timeout" time="1.000000"/></proof>
+ <proof prover="2"><result status="timeout" time="1.000000" steps="1865716"/></proof>
+ <transf name="split_vc" proved="true" >
+  <goal name="offset_push&#39;vc.0" expl="variant decrease" proved="true">
+  <proof prover="2"><result status="valid" time="0.008174" steps="8814"/></proof>
+  </goal>
+  <goal name="offset_push&#39;vc.1" expl="precondition" proved="true">
+  <proof prover="2"><result status="valid" time="0.019903" steps="34726"/></proof>
+  </goal>
+  <goal name="offset_push&#39;vc.2" expl="postcondition" proved="true">
+  <proof prover="0"><result status="timeout" time="1.000000" steps="55651"/></proof>
+  <proof prover="1"><result status="timeout" time="1.000000"/></proof>
+  <proof prover="2"><result status="timeout" time="1.000000" steps="1646931"/></proof>
+  <transf name="split_vc" proved="true" >
+   <goal name="offset_push&#39;vc.2.0" expl="postcondition" proved="true">
+   <proof prover="0" timelimit="5" memlimit="2000"><result status="valid" time="2.024296" steps="119355"/></proof>
+   </goal>
+   <goal name="offset_push&#39;vc.2.1" expl="postcondition" proved="true">
+   <proof prover="1"><result status="valid" time="0.060910" steps="7151"/></proof>
+   </goal>
+   <goal name="offset_push&#39;vc.2.2" expl="postcondition" proved="true">
+   <proof prover="0"><result status="valid" time="0.068739" steps="1534"/></proof>
+   </goal>
+  </transf>
+  </goal>
+ </transf>
+ </goal>
+</theory>
+</file>
+</why3session>
