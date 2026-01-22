@@ -131,24 +131,25 @@ module Test
     use std.Clib
     use int.Int
 
-    let ctensor_where (cond : ctensorint32) (a b r : ctensorint64) (b64 : int64) = 
+    let ctensor_where (cond : ctensorint32) (a b r : ctensorint64) (b64 : int64) (b32 : int32) = 
         requires { CInt32Tensor.valid_tensor cond }
         requires { CInt64Tensor.valid_tensor a }
         requires { CInt64Tensor.valid_tensor b }
         requires { CInt64Tensor.valid_tensor r }
         requires { CInt64Tensor.tensor a b64 ~= CInt64Tensor.tensor b b64 ~= CInt64Tensor.tensor r b64 }
-        let m = cdim_size cond.CInt32Tensor.t_dims cond.CInt32Tensor.t_rank in
+        requires { CInt32Tensor.tensor cond b32 ~ CInt64Tensor.tensor a b64 ~ CInt64Tensor.tensor b b64 }
+        let m = cdim_size (CInt32Tensor.t_dims cond) (CInt32Tensor.t_rank cond) in
         for i = 0 to m-1 do
             (*proof*)
                 invariant { forall k. 0 <= k < i ->
-                    value_at r.CInt64Tensor.t_data k =
-                    if 0 < value_at cond.CInt32Tensor.t_data k then
-                        value_at a.CInt64Tensor.t_data k
+                    value_at (CInt64Tensor.t_data r) k =
+                    if 0 < value_at (CInt32Tensor.t_data cond) k then
+                        value_at (CInt64Tensor.t_data a) k
                     else
-                        value_at b.CInt64Tensor.t_data k
+                        value_at (CInt64Tensor.t_data b) k
                 }
             (*qed*)
-            r.CInt64Tensor.t_data[i] <- if 0 < cond.CInt32Tensor.t_data[i] then a.CInt64Tensor.t_data[i] else b.CInt64Tensor.t_data[i]
+            (CInt64Tensor.t_data r)[i] <- if 0 < (CInt32Tensor.t_data cond)[i] then (CInt64Tensor.t_data a)[i] else (CInt64Tensor.t_data b)[i]
         done;
 
 
