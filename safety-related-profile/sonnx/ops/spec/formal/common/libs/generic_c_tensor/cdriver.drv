@@ -52,6 +52,14 @@ module specifictensor.CInt64Tensor
   interface "#include <math.h>"
 end
 
+module specifictensor.CBooleanTensor
+  interface "#include <stdlib.h>"
+  interface "#include <stdint.h>"
+  interface "#include \"cindex.h\""
+  interface "#include <math.h>"
+end
+
+
 module specifictensor.CFloatTensor
   interface "#include <stdlib.h>"
   interface "#include <stdint.h>"

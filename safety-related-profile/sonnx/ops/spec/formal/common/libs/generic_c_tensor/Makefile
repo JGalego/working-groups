@@ -32,6 +32,7 @@ lib:
 	@why3 extract $(EXTRACT) libtensor.CTensor
 	@why3 extract $(EXTRACT) specifictensor.CInt32Tensor
 	@why3 extract $(EXTRACT) specifictensor.CInt64Tensor
+	@why3 extract $(EXTRACT) specifictensor.CBooleanTensor
 	@why3 extract $(EXTRACT) specifictensor.CFloatTensor
 	@cd lib && gcc -c *.c
 	@find lib -type f | sort

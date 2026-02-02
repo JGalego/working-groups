@@ -32,6 +32,25 @@ module CInt64Tensor
   
 end
 
+module CBooleanTensor
+
+  use int.Int
+  use list.List
+  use tensor.Tensor
+  
+  function id (b : bool) : bool = b
+  
+  constant zero : bool = false
+  clone export generictensor.GenericTensor with
+      type data_type = bool,
+      type abstract_data_type = bool,
+      function to_abstract = id
+
+  type ctensorbool = ctensor
+  
+end
+
+
 
 module CFloatTensor
   
@@ -65,6 +84,52 @@ module CFloatTensor
       data = pure { tensor_valueb t } ;
       background = false ;
     }
+
+end
+
+
+module CWhere1
+
+  use CFloatTensor
+  use CBooleanTensor
+  use libvector.CIndex
+  use mach.int.Int32
+  use std.Cfloat
+  use std.Clib
+  use int.Int
+  use tensor.OPWhere
+  use tensor.Tensor
+
+  
+  let ctensor_where (cond: ctensorbool) (a b r : ctensorfloat) =
+    (*proof*)
+    requires { CBooleanTensor.valid_tensor cond }
+    requires { CFloatTensor.valid_tensor a }
+    requires { CFloatTensor.valid_tensor b }
+    requires { CFloatTensor.valid_tensor r }
+    requires { CFloatTensor.tensor a Cfloat.zero ~= CFloatTensor.tensor b Cfloat.zero ~= CFloatTensor.tensor r Cfloat.zero }
+    (*qed*)
+    requires { CBooleanTensor.tensor cond CBooleanTensor.zero ~ CFloatTensor.tensor a Cfloat.zero ~ CFloatTensor.tensor b Cfloat.zero }
+    ensures { CFloatTensor.tensor r Cfloat.zero = opwhere (CBooleanTensor.tensor cond CBooleanTensor.zero) 
+                                                          (CFloatTensor.tensor a Cfloat.zero) (CFloatTensor.tensor b Cfloat.zero) }
+    let m = cdim_size r.CFloatTensor.t_dims r.CFloatTensor.t_rank in
+    for i = 0 to m-1 do
+      (*proof*)
+      invariant {
+        forall k. 0 <= k < i ->
+          value_at r.CFloatTensor.t_data k =
+            if  value_at cond.CBooleanTensor.t_data k
+            then a.CFloatTensor.t_data[k] else b.CFloatTensor.t_data[k]
+      }
+      (*qed*)
+      r.CFloatTensor.t_data[i] <-
+        if cond.CBooleanTensor.t_data[i] then a.CFloatTensor.t_data[i] else b.CFloatTensor.t_data[i]
+    done
+    (*proof*)
+    ; assert { CFloatTensor.tensor r Cfloat.zero == opwhere (CBooleanTensor.tensor cond CBooleanTensor.zero) (CFloatTensor.tensor a Cfloat.zero) 
+                                                            (CFloatTensor.tensor b Cfloat.zero) }
+    (*qed*)
+
 
 end
 
@@ -110,6 +175,9 @@ module CWhere
 
 
 end
+
+
+
 
 module Test
 
